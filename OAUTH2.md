@@ -283,6 +283,146 @@ Test with a real OIDC provider:
 3. Obtain a JWT token from the provider
 4. Test API requests with `Authorization: Bearer <token>` header
 
+
+# Keycloak Configuration Guide for JWT Authentication
+
+This guide explains how to configure Keycloak to obtain a JWT token to use with a protected API.
+
+---
+
+## Prerequisites
+
+- Docker and Docker Compose installed
+- Access to the Keycloak admin console
+
+---
+
+## 1. Start Keycloak
+
+Start Keycloak using the Docker Compose file included in the application:
+
+```bash
+docker-compose up -d keycloak
+```
+
+The admin console will be available at `http://localhost:8180`.
+
+---
+
+## 2. Realm Configuration
+
+1. Access the admin console: `http://localhost:8180`
+2. Credentials: `admin` / `admin`
+3. In the top-left menu click on **master** → **Create Realm**
+4. Enter the realm name (e.g. `myrealm`) and click **Create**
+
+> ⚠️ It is recommended not to use the `master` realm for applications — it is reserved for Keycloak administration.
+
+---
+
+## 3. Client Creation
+
+The client represents your application within Keycloak.
+
+1. Go to **Clients** → **Create client**
+2. Fill in the fields:
+  - **Client ID**: `myapp`
+  - **Client Protocol**: `openid-connect`
+3. Click **Next**
+4. Enable the following options:
+  - **Client authentication**: `ON` (makes the client *confidential*, required to have a Client Secret)
+  - **Direct Access Grants**: `ON` (allows obtaining a token via username and password)
+5. Click **Next** → **Save**
+
+---
+
+## 4. Retrieving the Client Secret
+
+1. Go to **Clients** → select `myapp`
+2. Click on the **Credentials** tab
+3. Copy the value of the **Client Secret** field
+
+---
+
+## 5. Creating a Test User
+
+1. Go to **Users** → **Add user**
+2. Enter a **Username** (e.g. `testuser`) and click **Create**
+3. Go to the **Credentials** tab → **Set password**
+4. Enter a password, disable **Temporary** and click **Save**
+
+---
+
+## 6. Obtaining a JWT Token
+
+### Via curl
+
+```bash
+curl -X POST http://localhost:8180/realms/myrealm/protocol/openid-connect/token \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "grant_type=password" \
+  -d "client_id=myapp" \
+  -d "client_secret=YOUR_CLIENT_SECRET" \
+  -d "username=testuser" \
+  -d "password=YOUR_PASSWORD"
+```
+
+The response will contain the JWT token:
+
+```json
+{
+  "access_token": "eyJhbGciOiJSUzI1NiIsInR5...",
+  "token_type": "Bearer",
+  "expires_in": 300
+}
+```
+
+### Via Postman
+
+1. Open Postman and go to the **Authorization** tab of your request
+2. Select **Type**: `OAuth 2.0`
+3. Click **Get New Access Token** and fill in:
+  - **Grant Type**: `Password Credentials`
+  - **Access Token URL**: `http://localhost:8180/realms/myrealm/protocol/openid-connect/token`
+  - **Client ID**: `myapp`
+  - **Client Secret**: `YOUR_CLIENT_SECRET`
+  - **Username** and **Password**: the test user credentials
+4. Click **Get New Access Token** — Postman will automatically add the token to the header
+
+---
+
+## 7. Using the Token to Call the API
+
+```bash
+curl -X GET http://localhost:8080/api/your-endpoint \
+  -H "Authorization: Bearer eyJhbGciOiJSUzI1NiIsInR5..."
+```
+
+---
+
+## 8. Application Configuration
+
+Set the following environment variables in your application:
+
+```properties
+OAUTH2_ENABLED=true
+OAUTH2_ISSUE_URI=http://localhost:8180/realms/myrealm
+OAUTH2_CLAIMS_NAME=name
+```
+
+> ⚠️ If the application runs **inside Docker**, use the service name instead of `localhost`:
+> ```properties
+> OAUTH2_ISSUE_URI=http://keycloak:8180/realms/myrealm
+> ```
+
+---
+
+## References
+
+- [Keycloak Official Documentation](https://www.keycloak.org/documentation)
+- [Keycloak Docker Hub](https://quay.io/repository/keycloak/keycloak)
+- [JWT Debugger](https://jwt.io)
+
 ---
 
 ## Contact
