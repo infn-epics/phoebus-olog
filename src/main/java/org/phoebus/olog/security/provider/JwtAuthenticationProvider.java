@@ -51,8 +51,16 @@ public class JwtAuthenticationProvider implements AuthenticationProvider {
 
         try {
             log.info("Attempting JWT authentication against issuer: {}", issuerUri);
+
+            // Extraxt kid from jwt
+            String kid = null;
+            String headerJson = new String(java.util.Base64.getUrlDecoder().decode(jwtToken.split("\\.")[0]));
+            Map<String, Object> header = new com.fasterxml.jackson.databind.ObjectMapper().readValue(headerJson, Map.class);
+            kid = (String) header.get("kid");
+            log.debug("JWT kid: {}", kid);
+
             // Check the token
-            RSAPublicKey publicKey = fetchPublicKey();
+            RSAPublicKey publicKey = fetchPublicKey(kid);
             log.info("Successfully fetched public key from OIDC provider");
             
             Claims claims = Jwts.parserBuilder()
@@ -98,30 +106,24 @@ public class JwtAuthenticationProvider implements AuthenticationProvider {
     /**
      * Download the public key from the OIDC server.
      */
-    private RSAPublicKey fetchPublicKey() {
+    private RSAPublicKey fetchPublicKey(String kid) {
         try {
-            // Get the OIDC configuration document
             String oidcUrl = issuerUri + "/.well-known/openid-configuration";
-            log.debug("Fetching OIDC configuration from: {}", oidcUrl);
             Map<String, Object> oidcConfig = restTemplate.getForObject(oidcUrl, Map.class);
-            if (oidcConfig == null) {
-                throw new RuntimeException("Failed to fetch OIDC configuration from: " + oidcUrl);
-            }
             String jwksUri = (String) oidcConfig.get("jwks_uri");
-            log.debug("Fetching JWKS from: {}", jwksUri);
 
-            // Obtains the JSON Web Key Set (JWKS) from the OIDC server
             Map<String, Object> jwks = restTemplate.getForObject(jwksUri, Map.class);
             List<Map<String, Object>> keys = (List<Map<String, Object>>) jwks.get("keys");
 
-            // Get the first key
-            Map<String, Object> key = keys.get(0);
-            String kid = (String) key.get("kid");
-            log.debug("Using JWKS key with kid: {}", kid);
+            // Seleziona la chiave con il kid corretto
+            Map<String, Object> key = keys.stream()
+                    .filter(k -> kid == null || kid.equals(k.get("kid")))
+                    .findFirst()
+                    .orElseThrow(() -> new RuntimeException("No matching key found for kid: " + kid));
+
             String modulusBase64 = (String) key.get("n");
             String exponentBase64 = (String) key.get("e");
 
-            // Convert the base64-encoded modulus and exponent to RSA public key
             byte[] modulusBytes = java.util.Base64.getUrlDecoder().decode(modulusBase64);
             byte[] exponentBytes = java.util.Base64.getUrlDecoder().decode(exponentBase64);
 
@@ -132,7 +134,7 @@ public class JwtAuthenticationProvider implements AuthenticationProvider {
                     .generatePublic(new java.security.spec.RSAPublicKeySpec(modulus, exponent));
 
         } catch (Exception e) {
-            log.error("Failed to fetch public key from OIDC provider at {}: {}", issuerUri, e.getMessage(), e);
+            log.error("Failed to fetch public key: {}", e.getMessage(), e);
             throw new RuntimeException("Failed to fetch or parse public key from OIDC provider", e);
         }
     }
