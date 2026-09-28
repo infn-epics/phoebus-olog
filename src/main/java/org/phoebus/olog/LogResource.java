@@ -122,6 +122,8 @@ public class LogResource {
     @SuppressWarnings("unused")
     @Autowired
     private WebSocketService webSocketService;
+    @Autowired
+    private LogbookAccessService logbookAccessService;
 
     @Autowired
     private AttachmentsUploadUtil attachmentsUploadUtil;
@@ -140,6 +142,7 @@ public class LogResource {
     public Log getLogById(@PathVariable(name = "logId") String logId) {
         Optional<Log> foundLog = logRepository.findById(logId);
         if (foundLog.isPresent()) {
+            logbookAccessService.requireReadable(foundLog.get());
             return foundLog.get();
         } else {
             String message = MessageFormat.format(TextUtil.LOG_NOT_FOUND, logId);
@@ -152,6 +155,7 @@ public class LogResource {
     @SuppressWarnings("unused")
     @Operation(summary = "Get an archived log by Id")
     public SearchResult getArchivedLog(@PathVariable(name = "logId") String logId) {
+        getLog(logId);
         return logRepository.findArchivedById(logId);
     }
 
@@ -160,6 +164,7 @@ public class LogResource {
     public ResponseEntity<Resource> getAttachment(@PathVariable(name = "logId") String logId, @PathVariable(name = "attachmentName") String attachmentName) {
         Optional<Log> log = logRepository.findById(logId);
         if (log.isPresent()) {
+            logbookAccessService.requireReadable(log.get());
             Set<Attachment> attachments = log.get().getAttachments().stream().filter(attachment -> attachment.getFilename().equals(attachmentName)).collect(Collectors.toSet());
             if (attachments.size() == 1) {
                 Attachment attachment = attachments.iterator().next();
@@ -346,6 +351,9 @@ public class LogResource {
         if (!CollectionUtils.containsAll(persistedLogbookNames, logbookNames)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, TextUtil.LOG_INVALID_LOGBOOKS);
         }
+        logbookAccessService.requirePermission(logbookNames,
+                org.phoebus.olog.entity.LogbookPermission.WRITE, principal);
+        validateExistingAttachments(log);
         Set<Tag> tags = log.getTags();
         if (tags != null && !tags.isEmpty()) {
             Set<String> tagNames = tags.stream().map(Tag::getName).collect(Collectors.toSet());
@@ -530,6 +538,13 @@ public class LogResource {
         Optional<Log> foundLog = logRepository.findById(logId);
         if (foundLog.isPresent()) {
             Log persistedLog = foundLog.get();
+            logbookAccessService.requireReadable(persistedLog);
+            Set<String> affectedLogbooks = new HashSet<>();
+            persistedLog.getLogbooks().forEach(item -> affectedLogbooks.add(item.getName()));
+            log.getLogbooks().forEach(item -> affectedLogbooks.add(item.getName()));
+            logbookAccessService.requirePermission(affectedLogbooks,
+                    org.phoebus.olog.entity.LogbookPermission.WRITE, principal);
+            validateExistingAttachments(log);
             logRepository.archive(persistedLog);
 
             // If persisted log has attachments not listed in the log submitted by client,
@@ -596,6 +611,13 @@ public class LogResource {
         Optional<Log> foundLog = logRepository.findById(logId);
         if (foundLog.isPresent()) {
             Log persistedLog = foundLog.get();
+            logbookAccessService.requireReadable(persistedLog);
+            Set<String> affectedLogbooks = new HashSet<>();
+            persistedLog.getLogbooks().forEach(item -> affectedLogbooks.add(item.getName()));
+            log.getLogbooks().forEach(item -> affectedLogbooks.add(item.getName()));
+            logbookAccessService.requirePermission(affectedLogbooks,
+                    org.phoebus.olog.entity.LogbookPermission.WRITE, principal);
+            validateExistingAttachments(log);
             logRepository.archive(persistedLog);
 
             // log entry group property should not be editable but remain if it exists
@@ -729,6 +751,7 @@ public class LogResource {
                 } catch (ResponseStatusException exception) {
                     throw new ResponseStatusException(HttpStatus.BAD_REQUEST, MessageFormat.format(TextUtil.LOG_ID_NOT_FOUND, id));
                 }
+                logbookAccessService.requireReadable(log.get());
                 Property logEntryGroupProperty = LogEntryGroupHelper.getLogEntryGroupProperty(log.get());
                 if (logEntryGroupProperty != null && existingLogEntryGroupProperty != null &&
                         !logEntryGroupProperty.getAttribute(LogEntryGroupHelper.ATTRIBUTE_ID).equals(existingLogEntryGroupProperty.getAttribute(LogEntryGroupHelper.ATTRIBUTE_ID))) {
@@ -780,6 +803,17 @@ public class LogResource {
                         .log(Level.WARNING, MessageFormat.format(TextUtil.LOG_ENTRY_NOTIFIER, n.getClass().getName()), e);
             }
         }));
+    }
+
+    private void validateExistingAttachments(Log log) {
+        if (log.getAttachments() == null) {
+            return;
+        }
+        for (Attachment attachment : log.getAttachments()) {
+            if (attachment.getId() != null && attachmentRepository.findById(attachment.getId()).isPresent()) {
+                logRepository.requireReadableAttachment(attachment.getId());
+            }
+        }
     }
 
     private Log cleanMarkup(String markup, Log log) {
@@ -859,6 +893,7 @@ public class LogResource {
         try {
             synchronized (logGroupSyncObject) {
                 Log originalLogEntry = logRepository.findById(originalLogEntryId).get();
+                logbookAccessService.requireReadable(originalLogEntry);
                 // Check if the original entry already contains the log entry group property
                 Property logEntryGroupProperty = LogEntryGroupHelper.getLogEntryGroupProperty(originalLogEntry);
                 if (logEntryGroupProperty == null) {
@@ -872,6 +907,9 @@ public class LogResource {
             }
         } catch (ResponseStatusException exception) {
             // Log entry not found, return HTTP 400
+            if (exception.getStatusCode() == HttpStatus.FORBIDDEN || exception.getStatusCode() == HttpStatus.UNAUTHORIZED) {
+                throw exception;
+            }
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, MessageFormat.format(TextUtil.LOG_ENTRY_CANNOT_REPLY_NOT_EXISTS, originalLogEntryId));
         }
     }

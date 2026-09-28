@@ -120,8 +120,17 @@ public class WebSecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
 
+        String olog = "/" + OlogResourceDescriptors.OLOG_SERVICE;
+        // GET requests go through the filter chain (not ignored) so that logbook
+        // permission checks see the caller; log entries, attachments and logbook
+        // membership endpoints require authentication, other reads stay public.
         http.authorizeHttpRequests(a -> a
                         .requestMatchers("/error").permitAll()
+                        .requestMatchers(HttpMethod.GET, olog + "/logs/**", olog + "/attachment/**").authenticated()
+                        .requestMatchers(HttpMethod.GET, olog + "/logbooks/*/members").authenticated()
+                        .requestMatchers(HttpMethod.GET, olog + "/logbooks/*/permissions/me").authenticated()
+                        .requestMatchers(HttpMethod.GET, olog + "/logbooks/permissions/me").authenticated()
+                        .requestMatchers(HttpMethod.GET, olog + "/**").permitAll()
                         .anyRequest()
                         .authenticated())
                 .csrf(c -> c.disable());
@@ -144,7 +153,6 @@ public class WebSecurityConfig {
         PathRequest.H2ConsoleRequestMatcher s = PathRequest.toH2Console();
         return (web) -> web
                 .ignoring()
-                .requestMatchers(HttpMethod.GET, "/" + OlogResourceDescriptors.OLOG_SERVICE + "/**")
                 .requestMatchers(HttpMethod.OPTIONS, "/" + OlogResourceDescriptors.OLOG_SERVICE + "/**")
                 .requestMatchers(HttpMethod.POST, "/" + OlogResourceDescriptors.OLOG_SERVICE + "/login")
                 .requestMatchers(HttpMethod.GET, "/" + OlogResourceDescriptors.OLOG_SERVICE + "/logout")

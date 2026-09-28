@@ -90,6 +90,14 @@ public class ElasticConfig {
         ES_LOGBOOK_INDEX = indexName;
     }
 
+    public static String ES_LOGBOOK_MEMBER_INDEX;
+
+    @Value("${elasticsearch.logbook.member.index:olog_logbook_members}")
+    @SuppressWarnings("unused")
+    public void setEsLogbookMemberIndex(String indexName) {
+        ES_LOGBOOK_MEMBER_INDEX = indexName;
+    }
+
     public static String ES_PROPERTY_INDEX;
 
     @Value("${elasticsearch.property.index:olog_properties}")
@@ -305,6 +313,23 @@ public class ElasticConfig {
             }
         } catch (IOException e) {
             logger.log(Level.WARNING, MessageFormat.format(TextUtil.ELASTIC_FAILED_TO_CREATE_INDEX, ES_LOGBOOK_INDEX), e);
+        }
+
+        // Olog Logbook Membership Index
+        try (InputStream is = ElasticConfig.class.getResourceAsStream("/logbook_member_mapping.json")) {
+            BooleanResponse exists = client.indices().exists(ExistsRequest.of(e -> e.index(ES_LOGBOOK_MEMBER_INDEX)));
+            if (!exists.value()) {
+                CreateIndexRequest request = CreateIndexRequest.of(
+                        c -> withTimeouts(c).index(ES_LOGBOOK_MEMBER_INDEX).withJson(is)
+                );
+                logCreateIndexRequest(request);
+                CreateIndexResponse result = client.indices().create(request);
+                logger.log(Level.INFO, () -> MessageFormat.format(TextUtil.ELASTIC_CREATED_INDEX_ACKNOWLEDGED,
+                        ES_LOGBOOK_MEMBER_INDEX, result.acknowledged()));
+            }
+        } catch (IOException e) {
+            logger.log(Level.WARNING, MessageFormat.format(TextUtil.ELASTIC_FAILED_TO_CREATE_INDEX,
+                    ES_LOGBOOK_MEMBER_INDEX), e);
         }
 
         // Olog Tag Index
