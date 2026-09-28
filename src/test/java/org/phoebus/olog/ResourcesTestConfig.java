@@ -48,6 +48,16 @@ public class ResourcesTestConfig {
     }
 
     @Bean
+    public LogbookMemberRepository logbookMemberRepository() {
+        return Mockito.mock(LogbookMemberRepository.class);
+    }
+
+    @Bean
+    public LogbookAccessService logbookAccessService() {
+        return Mockito.mock(LogbookAccessService.class);
+    }
+
+    @Bean
     public PropertyRepository propertyRepository() {
         return Mockito.mock(PropertyRepository.class);
     }

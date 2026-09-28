@@ -9,12 +9,15 @@ import static org.phoebus.olog.OlogResourceDescriptors.LOGBOOK_RESOURCE_URI;
 
 import java.security.Principal;
 import java.text.MessageFormat;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import org.phoebus.olog.entity.Logbook;
+import org.phoebus.olog.entity.LogbookPermissions;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -42,6 +45,9 @@ public class LogbooksResource {
     @Autowired
     private LogbookRepository logbookRepository;
 
+    @Autowired
+    private LogbookAccessService logbookAccessService;
+
     /** Creates a new instance of LogbooksResource */
     public LogbooksResource() {
     }
@@ -52,7 +58,7 @@ public class LogbooksResource {
     }
 
     @GetMapping("/{logbookName}")
-    public Logbook findByTitle(@PathVariable String logbookName) {
+    public Logbook findByTitle(@PathVariable("logbookName") String logbookName) {
         Optional<Logbook> foundLogbook = logbookRepository.findById(logbookName);
         if (foundLogbook.isPresent()) {
             return foundLogbook.get();
@@ -63,56 +69,89 @@ public class LogbooksResource {
         }
     }
 
+    @GetMapping("/{logbookName}/permissions/me")
+    public LogbookPermissions findMyPermissions(@PathVariable("logbookName") String logbookName,
+                                                @AuthenticationPrincipal Principal principal) {
+        return logbookAccessService.permissionsFor(logbookName, principal);
+    }
+
+    @GetMapping("/permissions/me")
+    public List<LogbookPermissions> findMyPermissions(@AuthenticationPrincipal Principal principal) {
+        return logbookAccessService.permissionsForCurrentUser(principal);
+    }
+
     @PutMapping("/{logbookName}")
-    public Logbook createLogbook(@PathVariable String logbookName,
+    public Logbook createLogbook(@PathVariable("logbookName") String logbookName,
                                  @RequestBody final Logbook logbook,
                                  @AuthenticationPrincipal Principal principal) {
-        // TODO Check permissions
-        // Validate
-
         // Validate request parameters
         validateLogbookRequest(logbook);
+        if (!logbookName.equals(logbook.getName())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Logbook name does not match the path");
+        }
 
         // check if present
         Optional<Logbook> existingLogbook = logbookRepository.findById(logbookName);
         if (existingLogbook.isPresent()) {
+            logbookAccessService.requireAdmin(logbookName, principal);
+            logbook.setOwner(existingLogbook.get().getOwner());
             // delete existing logbook
             logbookRepository.deleteById(logbookName);
+        } else {
+            logbook.setOwner(principal.getName());
         }
 
         // create new logbook
-        return logbookRepository.save(logbook);
+        Logbook savedLogbook = logbookRepository.save(logbook);
+        if (existingLogbook.isEmpty()) {
+            logbookAccessService.createOwnerMembership(logbookName, principal);
+        }
+        return savedLogbook;
     }
 
     @PutMapping
-    public Iterable<Logbook> updateLogbooks(@RequestBody final List<Logbook> logbooks) {
-        // TODO Check permissions
-        // Validate
-
+    public Iterable<Logbook> updateLogbooks(@RequestBody final List<Logbook> logbooks,
+                                            @AuthenticationPrincipal Principal principal) {
         // Validate request parameters
         validateLogbookRequest(logbooks);
 
         // delete existing logbooks
+        Set<String> newLogbooks = new HashSet<>();
         for(Logbook logbook: logbooks) {
-            if(logbookRepository.existsById(logbook.getName())) {
+            Optional<Logbook> existingLogbook = logbookRepository.findById(logbook.getName());
+            if(existingLogbook.isPresent()) {
+                logbookAccessService.requireAdmin(logbook.getName(), principal);
+                logbook.setOwner(existingLogbook.get().getOwner());
                 // delete existing tag
                 logbookRepository.deleteById(logbook.getName());
+            } else {
+                logbook.setOwner(principal.getName());
+                newLogbooks.add(logbook.getName());
             }
         }
 
         // create new logbooks
-        return logbookRepository.saveAll(logbooks);
+        Iterable<Logbook> savedLogbooks = logbookRepository.saveAll(logbooks);
+        for (Logbook logbook : logbooks) {
+            if (newLogbooks.contains(logbook.getName())) {
+                logbookAccessService.createOwnerMembership(logbook.getName(), principal);
+            }
+        }
+        return savedLogbooks;
     }
 
     @DeleteMapping("/{logbookName}")
-    public void deleteLogbook (@PathVariable String logbookName) {
-        // TODO Check permissions
+    public void deleteLogbook (@PathVariable("logbookName") String logbookName,
+                               @AuthenticationPrincipal Principal principal) {
 
         // check if present
         Optional<Logbook> existingLogbook = logbookRepository.findById(logbookName);
         if (existingLogbook.isPresent()) {
+            logbookAccessService.requireAdmin(logbookName, principal);
             // delete existing logbook
             logbookRepository.deleteById(logbookName);
+            logbookAccessService.deleteMemberships(logbookName);
         } else {
             String message = MessageFormat.format(TextUtil.LOGBOOK_NOT_EXISTS, logbookName);
             log.log(Level.SEVERE, message, new ResponseStatusException(HttpStatus.NOT_FOUND));

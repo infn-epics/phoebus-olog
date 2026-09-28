@@ -155,10 +155,11 @@ public class LogResourceTest extends ResourcesTestBase {
     }
 
     @Test
+    @org.springframework.security.test.context.support.WithMockUser
     void testGetLogById() throws Exception {
         when(logRepository.findById("1")).thenAnswer(invocationOnMock -> Optional.of(log1));
 
-        MockHttpServletRequestBuilder request = get("/" + OlogResourceDescriptors.LOG_RESOURCE_URI + "/1");
+        MockHttpServletRequestBuilder request = get("/" + OlogResourceDescriptors.LOG_RESOURCE_URI + "/1").header(HttpHeaders.AUTHORIZATION, AUTHORIZATION);
         MvcResult result = mockMvc.perform(request).andExpect(status().isOk())
                 .andReturn();
         Log log = objectMapper.readValue(result.getResponse().getContentAsString(), Log.class);
@@ -167,15 +168,17 @@ public class LogResourceTest extends ResourcesTestBase {
     }
 
     @Test
+    @org.springframework.security.test.context.support.WithMockUser
     void testGetLogByIdRepositoryThrowsException() throws Exception {
         when(logRepository.findById("1")).thenThrow(new ResponseStatusException(HttpStatus.NOT_FOUND, ""));
 
-        MockHttpServletRequestBuilder request = get("/" + OlogResourceDescriptors.LOG_RESOURCE_URI + "/1");
+        MockHttpServletRequestBuilder request = get("/" + OlogResourceDescriptors.LOG_RESOURCE_URI + "/1").header(HttpHeaders.AUTHORIZATION, AUTHORIZATION);
         mockMvc.perform(request).andExpect(status().isNotFound());
         verify(logRepository, times(1)).findById("1");
     }
 
     @Test
+    @org.springframework.security.test.context.support.WithMockUser
     void testFindLogs() throws Exception {
         MultiValueMap<String, String> map = new LinkedMultiValueMap<>();
         map.put("a", List.of("b"));
@@ -183,6 +186,7 @@ public class LogResourceTest extends ResourcesTestBase {
         when(logRepository.search(map)).thenAnswer(invocationOnMock -> new SearchResult(2, Arrays.asList(log1, log2)));
 
         MockHttpServletRequestBuilder request = get("/" + OlogResourceDescriptors.LOG_RESOURCE_URI)
+                .header(HttpHeaders.AUTHORIZATION, AUTHORIZATION)
                 .params(map)
                 .contentType(JSON);
         MvcResult result = mockMvc.perform(request).andExpect(status().isOk())
@@ -197,6 +201,7 @@ public class LogResourceTest extends ResourcesTestBase {
     }
 
     @Test
+    @org.springframework.security.test.context.support.WithMockUser
     void testSearchLogs() throws Exception {
         MultiValueMap<String, String> map = new LinkedMultiValueMap<>();
         map.put("a", List.of("b"));
@@ -204,6 +209,7 @@ public class LogResourceTest extends ResourcesTestBase {
         when(logRepository.search(map)).thenAnswer(invocationOnMock -> new SearchResult(2, Arrays.asList(log1, log2)));
 
         MockHttpServletRequestBuilder request = get("/" + OlogResourceDescriptors.LOG_RESOURCE_URI + "/search")
+                .header(HttpHeaders.AUTHORIZATION, AUTHORIZATION)
                 .params(map)
                 .contentType(JSON);
         MvcResult result = mockMvc.perform(request).andExpect(status().isOk())
@@ -329,9 +335,10 @@ public class LogResourceTest extends ResourcesTestBase {
      * @throws Exception
      */
     @Test
+    @org.springframework.security.test.context.support.WithMockUser
     void testGetAttachment() throws Exception {
         MockHttpServletRequestBuilder request = get("/" + OlogResourceDescriptors.LOG_RESOURCE_URI
-                + "/attachments/1/attachmentName");
+                + "/attachments/1/attachmentName").header(HttpHeaders.AUTHORIZATION, AUTHORIZATION);
         mockMvc.perform(request).andExpect(status().isOk());
     }
 

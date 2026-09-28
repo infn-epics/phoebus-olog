@@ -81,7 +81,13 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
     @Override
     protected void configure(HttpSecurity http) throws Exception {
         http.cors().and().csrf().disable();
-        http.authorizeRequests().anyRequest().authenticated();
+        http.authorizeRequests()
+                .antMatchers(HttpMethod.GET, "/Olog/logs/**", "/Olog/attachment/**").authenticated()
+                .antMatchers(HttpMethod.GET, "/Olog/logbooks/*/members").authenticated()
+                .antMatchers(HttpMethod.GET, "/Olog/logbooks/*/permissions/me").authenticated()
+                .antMatchers(HttpMethod.GET, "/Olog/logbooks/permissions/me").authenticated()
+                .antMatchers(HttpMethod.GET, "/**").permitAll()
+                .anyRequest().authenticated();
         // enable JWT authentication
         if (oauth2_enabled) {
             http.addFilterBefore(jwtAuthenticationFilter(authenticationManager()), UsernamePasswordAuthenticationFilter.class);
@@ -108,7 +114,6 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
     @Override
     public void configure(WebSecurity web) throws Exception {
         // The below lists exceptions for authentication.
-        web.ignoring().antMatchers(HttpMethod.GET, "/**");
         web.ignoring().antMatchers(HttpMethod.POST, "/**/login*");
         web.ignoring().antMatchers(HttpMethod.POST, "/**/logout");
         web.ignoring().antMatchers(HttpMethod.GET, "/**/user");
