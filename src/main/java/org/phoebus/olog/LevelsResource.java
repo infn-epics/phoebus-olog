@@ -14,6 +14,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
+import io.swagger.v3.oas.annotations.Operation;
+
 import java.text.MessageFormat;
 import java.util.Iterator;
 import java.util.List;
@@ -31,6 +33,7 @@ import static org.phoebus.olog.OlogResourceDescriptors.LEVEL_RESOURCE_RUI;
 @SuppressWarnings("unused")
 @RestController
 @RequestMapping(LEVEL_RESOURCE_RUI)
+@io.swagger.v3.oas.annotations.tags.Tag(name = "Levels")
 public class LevelsResource {
 
     private final Logger log = Logger.getLogger(LevelsResource.class.getName());
@@ -45,6 +48,7 @@ public class LevelsResource {
      * @return list of {@link org.phoebus.olog.entity.Level}s
      */
     @GetMapping
+    @Operation(summary = "Get all levels", operationId = "getAllLevels")
     public Iterable<org.phoebus.olog.entity.Level> findAll() {
         return levelRepository.findAll();
     }
@@ -58,7 +62,8 @@ public class LevelsResource {
      */
     @SuppressWarnings("unused")
     @GetMapping("/{levelName}")
-    public org.phoebus.olog.entity.Level findById(@PathVariable(name = "levelName") String levelName) {
+    @Operation(summary = "Get a level by name", operationId = "findLevelByName")
+    public org.phoebus.olog.entity.Level findByName(@PathVariable(name = "levelName") String levelName) {
         Optional<org.phoebus.olog.entity.Level> foundLevel = levelRepository.findById(levelName);
         if (foundLevel.isPresent()) {
             return foundLevel.get();
@@ -85,6 +90,11 @@ public class LevelsResource {
      */
     @SuppressWarnings("unused")
     @PutMapping("/{levelName}")
+    @Operation(summary = "Create a level",
+				description = "If the specified level is marked as default,\n"
+						+ "checks are made to make sure no existing level\n"
+						+ "in the database is marked as default. This is needed to ensure that only one\n"
+						+ "level is defined to be the default.")
     public org.phoebus.olog.entity.Level createLevel(@PathVariable(name = "levelName") String levelName, @RequestBody final org.phoebus.olog.entity.Level level) {
 
         // Validate request parameters
@@ -111,6 +121,7 @@ public class LevelsResource {
      */
     @SuppressWarnings("unused")
     @PutMapping
+    @Operation(summary = "Create a list of levels", operationId = "createLevels")
     public Iterable<org.phoebus.olog.entity.Level> createLevels(@RequestBody final List<org.phoebus.olog.entity.Level> levels) {
 
         // Validate request parameters
@@ -130,6 +141,7 @@ public class LevelsResource {
 
     @SuppressWarnings("unused")
     @DeleteMapping("/{levelName}")
+    @Operation(summary = "Delete a level by name")
     public void deleteLevel(@PathVariable(name = "levelName") String levelName) {
 
         // check if present

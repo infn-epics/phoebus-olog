@@ -29,15 +29,18 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
+import io.swagger.v3.oas.annotations.Operation;
+
 /**
  * Resource for handling the requests to ../properties
  * @author kunal
  */
 @RestController
 @RequestMapping(PROPERTY_RESOURCE_URI)
+@io.swagger.v3.oas.annotations.tags.Tag(name = "Properties")
 public class PropertiesResource {
 
-    private Logger log = Logger.getLogger(PropertiesResource.class.getName());
+    private final Logger log = Logger.getLogger(PropertiesResource.class.getName());
 
     @Autowired
     private PropertyRepository propertyRepository;
@@ -52,6 +55,7 @@ public class PropertiesResource {
      * @return a list of all {@link Property}s
      */
     @GetMapping
+    @Operation(summary = "Get all properties", operationId = "getAllProperties")
     public Iterable<Property> findAll(@RequestParam(required=false, name = "inactive") boolean inactive) {
         if(inactive) {
             return propertyRepository.findAll(true);
@@ -60,7 +64,8 @@ public class PropertiesResource {
     }
 
     @GetMapping("/{propertyName}")
-    public Property findByTitle(@PathVariable(name = "propertyName") String propertyName) {
+    @Operation(summary = "Get a property by name", operationId = "findPropertyByName")
+    public Property findByName(@PathVariable(name = "propertyName") String propertyName) {
         Optional<Property> foundProperty = propertyRepository.findById(propertyName);
         if (foundProperty.isPresent()) {
             return foundProperty.get();
@@ -72,6 +77,7 @@ public class PropertiesResource {
     }
 
     @PutMapping("/{propertyName}")
+    @Operation(summary = "Create a property")
     public Property createProperty(@PathVariable(name = "propertyName") String propertyName,
                                    @RequestBody final Property property,
                                    @AuthenticationPrincipal Principal principal) {
@@ -100,6 +106,7 @@ public class PropertiesResource {
      * @return The list of successfully created properties
      */
     @PutMapping
+    @Operation(summary = "Create a list of properties", operationId = "createProperties")
     public Iterable<Property> updateProperty(@RequestBody final List<Property> properties) {
         // TODO Check permissions
         // Validate
@@ -121,6 +128,7 @@ public class PropertiesResource {
     }
 
     @DeleteMapping("/{propertyName}")
+    @Operation(summary = "Delete a property by name")
     public void deleteProperty (@PathVariable(name = "propertyName") String propertyName) {
         // TODO Check permissions
 

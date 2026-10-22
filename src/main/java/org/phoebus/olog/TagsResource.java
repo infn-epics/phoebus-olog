@@ -25,6 +25,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
+import io.swagger.v3.oas.annotations.Operation;
+
 /**
  * Resource for handling the requests to ../tags
  * @author Kunal Shroff
@@ -32,9 +34,10 @@ import org.springframework.web.server.ResponseStatusException;
  */
 @RestController
 @RequestMapping(TAG_RESOURCE_URI)
+@io.swagger.v3.oas.annotations.tags.Tag(name = "Tags")
 public class TagsResource {
 
-    private Logger log = Logger.getLogger(TagsResource.class.getName());
+    private final Logger log = Logger.getLogger(TagsResource.class.getName());
 
     @Autowired
     private TagRepository tagRepository;
@@ -49,6 +52,7 @@ public class TagsResource {
      * @return list of tags
      */
     @GetMapping
+    @Operation(summary = "Get all tags", operationId = "getAllTags")
     public Iterable<Tag> findAll() {
         return tagRepository.findAll();
     }
@@ -60,7 +64,8 @@ public class TagsResource {
      * @return the matching tag, or null
      */
     @GetMapping("/{tagName}")
-    public Tag findByTitle(@PathVariable(name = "tagName") String tagName) {
+    @Operation(summary = "Get a tag by name", operationId = "findTagByName")
+    public Tag findByName(@PathVariable(name = "tagName") String tagName) {
         Optional<Tag> foundTag = tagRepository.findById(tagName);
         if (foundTag.isPresent()) {
             return foundTag.get();
@@ -79,6 +84,7 @@ public class TagsResource {
      * @return the created tag
      */
     @PutMapping("/{tagName}")
+    @Operation(summary = "Create a tag")
     public Tag createTag(@PathVariable(name = "tagName") String tagName, @RequestBody final Tag tag) {
         // TODO Check permissions
         // Validate
@@ -104,6 +110,7 @@ public class TagsResource {
      * @return the list of tags created
      */
     @PutMapping
+    @Operation(summary = "Create a list of tags", operationId = "createTags")
     public Iterable<Tag> updateTag(@RequestBody final List<Tag> tags) {
         // TODO Check permissions
         // Validate
@@ -124,6 +131,7 @@ public class TagsResource {
     }
 
     @DeleteMapping("/{tagName}")
+    @Operation(summary = "Delete a tag by name")
     public void deleteTag(@PathVariable(name = "tagName") String tagName) {
         // TODO Check permissions
 

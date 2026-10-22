@@ -3,6 +3,7 @@ FROM maven:3.9.11-eclipse-temurin-25 AS maven-build
 RUN mkdir phoebus-olog
 WORKDIR /phoebus-olog
 COPY . .
+
 RUN mvn clean install \
     -DskipTests=true \
     -Dmaven.javadoc.skip=true \

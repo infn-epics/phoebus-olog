@@ -1,46 +1,37 @@
-### About
+# Running a Docker integration test
 
 Describe ability to develop and run integration tests for Olog API with Docker.
 
 In other words, how to use `src/test/java` to test `src/main/java` with integration tests using Docker.
 
-##### Background
+## Background
 
 Olog with Elasticsearch and MongDB together with the environment in which the applications run, is complex and usually heavily relied on by other applications and environments. Outside interface is to Olog but Olog, Elasticsearch and MongoDB go together. Therefore, there is need to test Olog, Elasticsearch and MongoDB together.
 
 It is possible to test Olog API by running Olog, Elasticsearch and MongoDB applications together as Docker containers and executing a series of requests and commands to test their behavior. This tutorial will show how it works and give examples.
 
-##### Content
+## Prerequisites
 
-* [Prerequisites](#prerequisites)
-* [Examples](#examples)
-* [How it works - big picture](#how-it-works-big-picture)
-* [How it works - in detail](#how-it-works-in-detail)
-* [How to run](#how-to-run)
-* [Reference](#reference)
-
-### Prerequisites
-
-##### Tools
+### Tools
 
 * Docker - engine 18.06.0+ or later, compose 2.21.0 or later, compose file version 3.7 to be supported
 
-##### Dependencies
+### Dependencies
 
 * JUnit 5
 * Testcontainers
 
-##### Files
+### Files
 
 * folder `src/test/java` and package `org.phoebus.olog.docker`
-* [docker-compose-integrationtest.yml](docker-compose-integrationtest.yml)
-* [Dockerfile.integrationtest](Dockerfile.integrationtest)
+* `docker-compose-integrationtest.yml`
+* `Dockerfile.integrationtest`
 
-### Examples
+## Examples
 
-##### Simple
+### Simple
 
-[OlogIT.java](src/test/java/org/phoebus/olog/docker/OlogIT.java)
+`src/test/java/org/phoebus/olog/docker/OlogIT.java`
 
 ```
 @Test
@@ -53,9 +44,9 @@ Purpose
 How
 * Http request (GET) is run towards Olog base url and response code is verified to be 200
 
-##### Medium
+### Medium
 
-[OlogPropertiesIT.java](src/test/java/org/phoebus/olog/docker/OlogPropertiesIT.java)
+`src/test/java/org/phoebus/olog/docker/OlogPropertiesIT.java`
 
 ```
 @Test
@@ -68,9 +59,9 @@ Purpose
 How
 * a series of Http requests (GET) and curl commands (POST, PUT, DELETE) are run towards the application to test behavior
 
-##### Complex
+### Complex
 
-[OlogLogsQueryIT.java](src/test/java/org/phoebus/olog/docker/OlogLogsQueryIT.java)
+`src/test/java/org/phoebus/olog/docker/OlogLogsQueryIT.java`
 
 ```
 @Test
@@ -85,7 +76,7 @@ Purpose
 How
 * a series of Http requests (GET) and curl commands (POST, PUT, DELETE) are run towards the application to test behavior
 
-### How it works - big picture
+## How it works - big picture
 
 Integration tests are implemented in test class annotated with `@Testcontainers`. Test class starts a docker container for the application (Olog service) and other docker containers for elastic (Elasticsearch) and mongo (MongoDB) through `docker-compose-integrationtest.yml` and `Dockerfile.integrationtest` after which JUnit tests are run.
 
@@ -112,13 +103,13 @@ Http requests (GET) and curl commands (POST, PUT, DELETE) are run towards the ap
 
 There are tests for properties, tags, logbooks and logs separately and in combination.
 
-##### Note
+### Note
 
 * Docker containers (Olog, Elasticsearch and MongoDB) are shared for tests within test class. Order in which tests are run is not known. Therefore, each test is to leave Olog, Elasticsearch and MongoDB in a clean state to not disturb other tests.
 
-### How it works - in detail
+## How it works - in detail
 
-##### Anatomy of an integration test
+### Anatomy of an integration test
 
 ```
 @Testcontainers
@@ -214,7 +205,7 @@ class OlogPropertiesIT {
     }
 ```
 
-##### What happens at runtime
+### What happens at runtime
 
 The test environment is started with through test class annotated with `@Testcontainers` and constant `ENVIRONMENT` annotated with `@Container`. Containers are started (Ryuk, Olog, Elasticsearch, MongoDB). Then one time setup is run (method annotated with `@BeforeAll`), after which individual tests are run (methods annotated with `@Test`) after which one time tear down is run (method annotated with `@AfterAll`). Finally tasks are done and test class is closed.
 
@@ -225,7 +216,7 @@ Note the extensive use of test utility classes (in more detail below) in which a
 * Http requests (GET) and curl commands (POST, PUT, DELETE) corresponding to endpoints in Olog API
 * assert response
 
-##### Examining `handleProperty`
+### Examining `handleProperty`
 
 1.  A GET request is made to Olog to list all properties and ensure that only default property is available.
 2.  A PUT request is made to Olog to create the property listed by the path parameter. Request is made with ADMIN authority.
@@ -279,20 +270,20 @@ Note the extensive use of test utility classes (in more detail below) in which a
     public void deleteProperty (@PathVariable String propertyName) {
 ```
 
-##### Test classes
+### Test classes
 
 See `src/test/java` and `org.phoebus.olog.docker`.
 
 * files with suffix IT.java
 
-##### Test utilities
+### Test utilities
 
 See `src/test/java` and `org.phoebus.olog.docker`.
 
 * files with prefix ITTestFixture
 * files with prefix ITUtil
 
-##### Test utilities - example
+### Test utilities - example
 
 With the help of test utitilies, the tests themselves may be simplified and made more clear.
 
@@ -359,22 +350,16 @@ public class OlogLogsQueryIT {
 
 ```
 
-##### Note
+### Note
 
 * (Re) Build after change in `src/main/java` is needed in order for change to be tested as `Dockerfile.integrationtest` relies on built code.
 * Configuration in folder `src/test/java` and package `org.phoebus.olog.docker`, e.g. urls and port numbers, is coupled to files `Dockerfile.integrationtest` and `docker-compose-integrationtest.yml` (beside `src/main/resources/application.properties`).
 * Both positive and negative tests are important to ensure validation works as expected.
 
-### How to run
+## How to run
 
-See [How to run Integration test with Docker](INTEGRATIONTEST_DOCKER_RUN.md).
+See {doc}`../guides/docker-integration-tests`.
 
-### Reference
-
-##### Olog
-
-* [Olog Service Documentation](https://olog.readthedocs.io/en/latest/)
-
-##### Testcontainers
+## References
 
 * [Testcontainers](https://testcontainers.com/)

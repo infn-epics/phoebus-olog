@@ -18,6 +18,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
+import io.swagger.v3.oas.annotations.Operation;
+
 import java.security.Principal;
 import java.text.MessageFormat;
 import java.util.List;
@@ -35,9 +37,10 @@ import static org.phoebus.olog.OlogResourceDescriptors.LOGBOOK_RESOURCE_URI;
  */
 @RestController
 @RequestMapping(LOGBOOK_RESOURCE_URI)
+@io.swagger.v3.oas.annotations.tags.Tag(name = "Logbooks")
 public class LogbooksResource {
 
-    private Logger log = Logger.getLogger(LogbooksResource.class.getName());
+    private final Logger log = Logger.getLogger(LogbooksResource.class.getName());
 
     @Autowired
     private LogbookRepository logbookRepository;
@@ -49,13 +52,15 @@ public class LogbooksResource {
     }
 
     @GetMapping
+    @Operation(summary = "Get all logbooks", operationId = "getAllLogbooks")
     public Iterable<Logbook> findAll() {
         return logbookRepository.findAll();
     }
 
     @SuppressWarnings("unused")
     @GetMapping("/{logbookName}")
-    public Logbook findByTitle(@PathVariable(name = "logbookName") String logbookName) {
+    @Operation(summary = "Get a logbook by name", operationId = "findLogbookByName")
+    public Logbook findByName(@PathVariable(name = "logbookName") String logbookName) {
         Optional<Logbook> foundLogbook = logbookRepository.findById(logbookName);
         if (foundLogbook.isPresent()) {
             return foundLogbook.get();
@@ -68,6 +73,7 @@ public class LogbooksResource {
 
     @SuppressWarnings("unused")
     @PutMapping("/{logbookName}")
+    @Operation(summary = "Create a logbook")
     public Logbook createLogbook(@PathVariable(name = "logbookName") String logbookName,
                                  @RequestBody final Logbook logbook,
                                  @AuthenticationPrincipal Principal principal) {
@@ -90,6 +96,7 @@ public class LogbooksResource {
 
     @SuppressWarnings("unused")
     @PutMapping
+    @Operation(summary = "Create a list of logbooks", operationId = "createLogbooks")
     public Iterable<Logbook> updateLogbooks(@RequestBody final List<Logbook> logbooks) {
         // TODO Check permissions
         // Validate
@@ -111,6 +118,7 @@ public class LogbooksResource {
 
     @SuppressWarnings("unused")
     @DeleteMapping("/{logbookName}")
+    @Operation(summary = "Delete a logbook by name")
     public void deleteLogbook(@PathVariable(name = "logbookName") String logbookName) {
         // TODO Check permissions
 

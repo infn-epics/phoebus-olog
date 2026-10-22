@@ -19,6 +19,8 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import io.swagger.v3.oas.annotations.Operation;
+
 import static org.phoebus.olog.OlogResourceDescriptors.ATTACHMENT_URI;
 
 import java.io.IOException;
@@ -34,6 +36,7 @@ import java.util.logging.Logger;
  */
 @RestController
 @RequestMapping(ATTACHMENT_URI)
+@io.swagger.v3.oas.annotations.tags.Tag(name = "Logs")
 public class AttachmentResource
 {
     @Autowired
@@ -49,6 +52,7 @@ public class AttachmentResource
      * a HTTP 500 response is returned.
      */
     @GetMapping("{attachmentId}")
+    @Operation(summary = "Get an attachment by Id", operationId = "getAttachment")
     public ResponseEntity<Resource> getAttachment(@PathVariable(name = "attachmentId") String attachmentId) {
         log.log(Level.INFO, () -> MessageFormat.format(TextUtil.ATTACHMENT_REQUEST, attachmentId));
         Optional<Attachment> attachment = attachmentRepository.findById(attachmentId);

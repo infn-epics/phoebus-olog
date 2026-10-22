@@ -14,6 +14,8 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
+import io.swagger.v3.oas.annotations.Operation;
+
 import java.security.Principal;
 import java.text.MessageFormat;
 import java.time.Instant;
@@ -31,6 +33,7 @@ import static org.phoebus.olog.OlogResourceDescriptors.LOG_TEMPLATE_RESOURCE_URI
  */
 @RestController
 @RequestMapping(LOG_TEMPLATE_RESOURCE_URI)
+@io.swagger.v3.oas.annotations.tags.Tag(name = "Templates")
 public class LogTemplateResource {
     private final Logger logger = Logger.getLogger(LogTemplateResource.class.getName());
 
@@ -48,8 +51,9 @@ public class LogTemplateResource {
 
 
     @GetMapping("{logTemplateId}")
+    @Operation(summary = "Get a template by Id", operationId = "getTemplateById")
     @SuppressWarnings("unused")
-    public LogTemplate getLogTemplate(@PathVariable(name = "logTemplateId") String logTemplateId) {
+    public LogTemplate getLogTemplateById(@PathVariable(name = "logTemplateId") String logTemplateId) {
         return logTemplateRepository.findById(logTemplateId).get();
     }
 
@@ -62,6 +66,12 @@ public class LogTemplateResource {
      */
     @SuppressWarnings("unused")
     @PutMapping()
+    @Operation(summary = "Create a new template",
+				description = "Log entry templates can be added to the storage to support use cases when the same type of log entries need to be\n"
+						+ "created on a regular basis. Templates have the same structure a regular log entries, except for attachments.\n"
+						+ "In the client UI (currently only CS Studio/Phoebus) users may select from a list of templates, if available. Upon\n"
+						+ "selection of a template, the client will populate the editor's input controls based on the template content.",
+				operationId = "createTemplate")
     public LogTemplate createLogTemplate(@RequestBody LogTemplate logTemplate,
                                          @AuthenticationPrincipal Principal principal) {
 
@@ -179,6 +189,7 @@ public class LogTemplateResource {
      * @param logTemplateId Unique id
      */
     @DeleteMapping("/{logTemplateId}")
+    @Operation(summary = "Delete a template", description = "Delete a template based on its unique id", operationId = "deleteTemplate")
     public void deleteLogTemplate(@PathVariable(name = "logTemplateId") String logTemplateId){
         logTemplateRepository.deleteById(logTemplateId);
     }
@@ -188,6 +199,7 @@ public class LogTemplateResource {
      */
     @SuppressWarnings("unused")
     @GetMapping
+    @Operation(summary = "Get all templates")
     public List<LogTemplate> getAllTemplates() {
         List<LogTemplate> allTemplates = new ArrayList<>();
         logTemplateRepository.findAll().forEach(allTemplates::add);
