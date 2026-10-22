@@ -25,12 +25,15 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import io.swagger.v3.oas.annotations.Operation;
+
 import static org.phoebus.olog.OlogResourceDescriptors.SERVICE_CONFIGURATION_URI;
 
 import java.util.List;
 
 @RestController
 @RequestMapping(SERVICE_CONFIGURATION_URI)
+@io.swagger.v3.oas.annotations.tags.Tag(name = "Infos")
 public class ServiceConfigurationResource {
 
     @Autowired
@@ -43,6 +46,7 @@ public class ServiceConfigurationResource {
     private List<String> levels;
 
     @GetMapping
+    @Operation(summary = "Get configuration", description = "Get levels, logbooks and tags configuration")
     public ServiceConfiguration serviceConfiguration(){
         ServiceConfiguration serviceConfiguration = new ServiceConfiguration();
         serviceConfiguration.setLevels(levels);

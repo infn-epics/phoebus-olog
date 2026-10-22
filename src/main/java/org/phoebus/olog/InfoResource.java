@@ -3,6 +3,8 @@ package org.phoebus.olog;
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
 import co.elastic.clients.elasticsearch._types.ElasticsearchVersionInfo;
 import co.elastic.clients.elasticsearch.core.InfoResponse;
+import io.swagger.v3.oas.annotations.Operation;
+
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
@@ -26,6 +28,7 @@ import static org.phoebus.olog.OlogResourceDescriptors.OLOG_SERVICE_INFO;
 @RestController
 @RequestMapping(OLOG_SERVICE_INFO)
 @SuppressWarnings("unused")
+@io.swagger.v3.oas.annotations.tags.Tag(name = "Infos")
 public class InfoResource
 {
 
@@ -55,6 +58,7 @@ public class InfoResource
      * @return Information about the Olog service
      */
     @GetMapping
+    @Operation(summary = "Get information", description = "Get information about the Olog service")
     public String info() {
 
         Map<String, Object> ologServiceInfo = new LinkedHashMap<>();

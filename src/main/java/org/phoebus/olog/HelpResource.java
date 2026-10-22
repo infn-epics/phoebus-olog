@@ -28,6 +28,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
+import io.swagger.v3.oas.annotations.Operation;
+
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
@@ -47,6 +49,7 @@ import static org.phoebus.olog.OlogResourceDescriptors.HELP_URI;
 @RestController
 @RequestMapping(HELP_URI)
 @SuppressWarnings("unused")
+@io.swagger.v3.oas.annotations.tags.Tag(name = "Infos")
 public class HelpResource {
 
     @Autowired
@@ -66,6 +69,7 @@ public class HelpResource {
      */
     @SuppressWarnings("unused")
     @GetMapping(value = "{what}", produces = CONTENT_TYPE)
+    @Operation(summary = "Get help", description = "Locates the (static) help resource and returns it as a string.")
     public String getHelpContent(@RequestParam(name = "lang", required = false) String lang,
                                  @PathVariable(name = "what") String what,
                                  HttpServletRequest request) {
