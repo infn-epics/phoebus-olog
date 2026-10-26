@@ -4,6 +4,7 @@ import org.phoebus.olog.entity.Logbook;
 import org.phoebus.olog.entity.Log;
 import co.elastic.clients.elasticsearch._types.query_dsl.Query;
 import co.elastic.clients.elasticsearch._types.query_dsl.RangeQuery;
+import co.elastic.clients.elasticsearch._types.query_dsl.UntypedRangeQuery;
 import co.elastic.clients.json.JsonData;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
@@ -254,14 +255,14 @@ public class LogbookAccessService {
             if (member == null || (member.getVisibleFrom() == null && member.getVisibleTo() == null)) {
                 grants.add(book);
             } else {
-                RangeQuery.Builder dates = new RangeQuery.Builder().field("createdDate");
+                UntypedRangeQuery.Builder dates = new UntypedRangeQuery.Builder().field("createdDate");
                 if (member.getVisibleFrom() != null) {
                     dates.gte(JsonData.of(LocalDate.parse(member.getVisibleFrom()).atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()));
                 }
                 if (member.getVisibleTo() != null) {
                     dates.lt(JsonData.of(LocalDate.parse(member.getVisibleTo()).plusDays(1).atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()));
                 }
-                grants.add(Query.of(q -> q.bool(b -> b.filter(book, dates.build()._toQuery()))));
+                grants.add(Query.of(q -> q.bool(b -> b.filter(book, RangeQuery.of(r -> r.untyped(dates.build()))._toQuery()))));
             }
         }
         return grants.isEmpty() ? Query.of(q -> q.matchNone(m -> m))

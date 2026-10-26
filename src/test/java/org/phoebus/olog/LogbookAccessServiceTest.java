@@ -61,7 +61,7 @@ class LogbookAccessServiceTest {
                 () -> service.addMember("operations", "member-uuid",
                         EnumSet.of(LogbookPermission.READ), () -> "other-uuid"));
 
-        assertEquals(HttpStatus.FORBIDDEN, exception.getStatus());
+        assertEquals(HttpStatus.FORBIDDEN, exception.getStatusCode());
     }
 
     @Test
@@ -74,7 +74,7 @@ class LogbookAccessServiceTest {
                 () -> service.addMember("operations", "member-uuid",
                         EnumSet.of(LogbookPermission.ADMIN), owner));
 
-        assertEquals(HttpStatus.BAD_REQUEST, exception.getStatus());
+        assertEquals(HttpStatus.BAD_REQUEST, exception.getStatusCode());
     }
 
     @Test
@@ -88,7 +88,7 @@ class LogbookAccessServiceTest {
         ResponseStatusException exception = assertThrows(ResponseStatusException.class,
                 () -> service.removeMember("operations", owner.getName(), owner));
 
-        assertEquals(HttpStatus.BAD_REQUEST, exception.getStatus());
+        assertEquals(HttpStatus.BAD_REQUEST, exception.getStatusCode());
     }
 
     @Test
@@ -119,6 +119,6 @@ class LogbookAccessServiceTest {
                 () -> service.requirePermission(java.util.List.of("operations"), LogbookPermission.WRITE,
                         () -> "reader-uuid"));
 
-        assertEquals(HttpStatus.FORBIDDEN, exception.getStatus());
+        assertEquals(HttpStatus.FORBIDDEN, exception.getStatusCode());
     }
 }

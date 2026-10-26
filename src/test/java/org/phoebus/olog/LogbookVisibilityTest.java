@@ -81,15 +81,15 @@ class LogbookVisibilityTest {
     @Test void searchUsesPerBookRangeAndExclusiveNextDay() {
         var filter = service.readFilter(reader).bool().should().get(0).bool().filter();
         assertEquals("operations", filter.get(0).nested().query().term().value().stringValue());
-        assertEquals(Instant.parse("2026-09-01T00:00:00Z").toEpochMilli(), filter.get(1).range().gte().to(Long.class));
-        assertEquals(Instant.parse("2026-09-11T00:00:00Z").toEpochMilli(), filter.get(1).range().lt().to(Long.class));
+        assertEquals(Instant.parse("2026-09-01T00:00:00Z").toEpochMilli(), filter.get(1).range().untyped().gte().to(Long.class));
+        assertEquals(Instant.parse("2026-09-11T00:00:00Z").toEpochMilli(), filter.get(1).range().untyped().lt().to(Long.class));
     }
 
     @Test void periodsAreValidatedAndCanBeRemoved() {
         assertEquals(HttpStatus.BAD_REQUEST, assertThrows(ResponseStatusException.class,
-                () -> service.updateMember("operations", "reader", member.getPermissions(), "2026-09-12", "2026-09-01", () -> "owner")).getStatus());
+                () -> service.updateMember("operations", "reader", member.getPermissions(), "2026-09-12", "2026-09-01", () -> "owner")).getStatusCode());
         assertEquals(HttpStatus.BAD_REQUEST, assertThrows(ResponseStatusException.class,
-                () -> service.updateMember("operations", "reader", member.getPermissions(), "not-a-date", null, () -> "owner")).getStatus());
+                () -> service.updateMember("operations", "reader", member.getPermissions(), "not-a-date", null, () -> "owner")).getStatusCode());
         var saved = service.updateMember("operations", "reader", member.getPermissions(), null, null, () -> "owner");
         assertNull(saved.getVisibleFrom());
         assertNull(saved.getVisibleTo());
@@ -97,6 +97,6 @@ class LogbookVisibilityTest {
 
     private void denied(String instant, Principal principal, HttpStatus expected) {
         assertEquals(expected, assertThrows(ResponseStatusException.class,
-                () -> service.requireReadable(entry(instant), principal)).getStatus());
+                () -> service.requireReadable(entry(instant), principal)).getStatusCode());
     }
 }

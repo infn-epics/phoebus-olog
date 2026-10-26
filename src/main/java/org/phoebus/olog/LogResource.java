@@ -155,7 +155,7 @@ public class LogResource {
     @SuppressWarnings("unused")
     @Operation(summary = "Get an archived log by Id")
     public SearchResult getArchivedLog(@PathVariable(name = "logId") String logId) {
-        getLog(logId);
+        getLogById(logId);
         return logRepository.findArchivedById(logId);
     }
 

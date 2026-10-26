@@ -384,19 +384,21 @@ public class LogResourceTest extends ResourcesTestBase {
     }
 
     @Test
+    @org.springframework.security.test.context.support.WithMockUser
     void testGetNonExistingAttachment() throws Exception {
 
         when(logRepository.findById("1")).thenReturn(Optional.of(log1));
         when(attachmentRepository.findById("attachment1")).thenReturn(Optional.empty());
         MockHttpServletRequestBuilder request = get("/" + OlogResourceDescriptors.LOG_RESOURCE_URI
-                + "/attachments/1/Tulips.jpg");
+                + "/attachments/1/Tulips.jpg").header(HttpHeaders.AUTHORIZATION, AUTHORIZATION);
         mockMvc.perform(request).andExpect(status().isNotFound());
     }
 
     @Test
+    @org.springframework.security.test.context.support.WithMockUser
     void testGetAttachmentInvalidLogId() throws Exception {
         MockHttpServletRequestBuilder request = get("/" + OlogResourceDescriptors.LOG_RESOURCE_URI
-                + "/attachments/1/attachmentName");
+                + "/attachments/1/attachmentName").header(HttpHeaders.AUTHORIZATION, AUTHORIZATION);
         mockMvc.perform(request).andExpect(status().isNotFound());
     }
 
