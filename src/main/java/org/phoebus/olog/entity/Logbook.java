@@ -21,6 +21,24 @@ public class Logbook implements Serializable {
     private String name = null;
     private String owner = null;
     private State state = State.Active;
+    private boolean officialExperiment;
+    private String experimentLdapPath;
+
+    public boolean isOfficialExperiment() {
+        return officialExperiment;
+    }
+
+    public void setOfficialExperiment(boolean officialExperiment) {
+        this.officialExperiment = officialExperiment;
+    }
+
+    public String getExperimentLdapPath() {
+        return experimentLdapPath;
+    }
+
+    public void setExperimentLdapPath(String experimentLdapPath) {
+        this.experimentLdapPath = experimentLdapPath;
+    }
 
     /**
      * Creates a new instance of Logbook.

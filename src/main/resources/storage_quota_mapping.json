@@ -1,0 +1,22 @@
+{
+  "mappings": {
+    "dynamic": "strict",
+    "properties": {
+      "logbook": {"type": "keyword"},
+      "infnUuid": {"type": "keyword"},
+      "quotaBytes": {"type": "long"},
+      "request": {
+        "properties": {
+          "id": {"type": "keyword"},
+          "requestedQuotaBytes": {"type": "long"},
+          "reason": {"type": "text", "index": false},
+          "status": {"type": "keyword"},
+          "requestedAt": {"type": "date"},
+          "reviewedBy": {"type": "keyword"},
+          "reviewedAt": {"type": "date"},
+          "reviewNote": {"type": "text", "index": false}
+        }
+      }
+    }
+  }
+}

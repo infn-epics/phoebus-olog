@@ -33,6 +33,7 @@ class LogbookVisibilityIT {
                 var client = new ElasticsearchClient(transport);
                 client.indices().create(c -> c.index("visibility-test").withJson(getClass().getResourceAsStream("/log_entry_mapping.json")));
                 client.indices().create(c -> c.index("members-test").withJson(getClass().getResourceAsStream("/logbook_member_mapping.json")));
+                client.indices().create(c -> c.index("books-test").withJson(getClass().getResourceAsStream("/logbook_mapping.json")));
                 for (int day = 1; day <= 4; day++) {
                     int id = day;
                     var document = Map.of("id", id, "createdDate", Instant.parse("2026-09-0" + day + "T12:00:00Z").toEpochMilli(),
@@ -53,7 +54,11 @@ class LogbookVisibilityIT {
                 assertEquals("2026-09-02", persisted.getVisibleFrom());
                 assertEquals("2026-09-03", persisted.getVisibleTo());
                 when(members.find("operations", "reader")).thenReturn(Optional.of(persisted));
-                var access = new LogbookAccessService(books, members);
+                var factory = mock(org.phoebus.olog.identity.InfnIdentityClientFactory.class);
+                var identity = mock(org.phoebus.olog.identity.api.IdentityApi.class);
+                when(factory.create("header.payload.signature")).thenReturn(identity);
+                var access = new LogbookAccessService(books, members,
+                        new org.phoebus.olog.identity.ExperimentMembershipService(factory));
                 var search = new LogSearchUtil();
                 ReflectionTestUtils.setField(search, "ES_LOG_INDEX", "visibility-test");
                 ReflectionTestUtils.setField(search, "maxSearchSize", 1000);
@@ -69,6 +74,23 @@ class LogbookVisibilityIT {
                 assertEquals("3", second.hits().hits().get(0).id());
                 params.set("from", "2");
                 assertTrue(client.search(search.buildSearchRequest(params, access.readFilter(() -> "reader")), Map.class).hits().hits().isEmpty());
+                book.setOfficialExperiment(true);
+                book.setExperimentLdapPath("i:infn:lnf:csn1:atlas");
+                client.index(i -> i.index("books-test").id(book.getName()).document(book));
+                var experiment = client.get(g -> g.index("books-test").id(book.getName()), Logbook.class).source();
+                assertTrue(experiment.isOfficialExperiment());
+                assertEquals(book.getExperimentLdapPath(), experiment.getExperimentLdapPath());
+                when(books.findById("operations")).thenReturn(Optional.of(experiment));
+                when(books.findAll()).thenReturn(List.of(experiment));
+                when(identity.getAuthorizationForUUID("scientist")).thenReturn(
+                        new org.phoebus.olog.identity.model.ApiResultResponseAuthorization().errorCode(0).payload(
+                                new org.phoebus.olog.identity.model.Authorization().isMemberOf(List.of(experiment.getExperimentLdapPath() + "::aff:tng"))));
+                var scientist = new UsernamePasswordAuthenticationToken("scientist", "header.payload.signature", List.of());
+                params.set("from", "0");
+                var experimentResults = client.search(search.buildSearchRequest(params, access.readFilter(scientist)), Map.class);
+                assertEquals(4, experimentResults.hits().total().value());
+                assertEquals("1", experimentResults.hits().hits().get(0).id());
+                assertEquals(0, client.search(search.buildSearchRequest(params, access.readFilter(() -> "outsider")), Map.class).hits().total().value());
                 String oldIndex = ElasticConfig.ES_LOG_INDEX;
                 try {
                     ElasticConfig.ES_LOG_INDEX = "visibility-test";
@@ -78,6 +100,8 @@ class LogbookVisibilityIT {
                     SecurityContextHolder.getContext().setAuthentication(new UsernamePasswordAuthenticationToken("reader", "", List.of()));
                     assertDoesNotThrow(() -> repository.requireReadableAttachment("file-2"));
                     assertThrows(ResponseStatusException.class, () -> repository.requireReadableAttachment("file-1"));
+                    SecurityContextHolder.getContext().setAuthentication(scientist);
+                    assertDoesNotThrow(() -> repository.requireReadableAttachment("file-1"));
                 } finally {
                     ElasticConfig.ES_LOG_INDEX = oldIndex;
                     SecurityContextHolder.clearContext();

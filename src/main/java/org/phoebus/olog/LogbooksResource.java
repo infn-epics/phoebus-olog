@@ -20,7 +20,6 @@ import org.phoebus.olog.entity.Logbook;
 import org.phoebus.olog.entity.LogbookPermissions;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -71,19 +70,19 @@ public class LogbooksResource {
 
     @GetMapping("/{logbookName}/permissions/me")
     public LogbookPermissions findMyPermissions(@PathVariable("logbookName") String logbookName,
-                                                @AuthenticationPrincipal Principal principal) {
+                                                Principal principal) {
         return logbookAccessService.permissionsFor(logbookName, principal);
     }
 
     @GetMapping("/permissions/me")
-    public List<LogbookPermissions> findMyPermissions(@AuthenticationPrincipal Principal principal) {
+    public List<LogbookPermissions> findMyPermissions(Principal principal) {
         return logbookAccessService.permissionsForCurrentUser(principal);
     }
 
     @PutMapping("/{logbookName}")
     public Logbook createLogbook(@PathVariable("logbookName") String logbookName,
                                  @RequestBody final Logbook logbook,
-                                 @AuthenticationPrincipal Principal principal) {
+                                 Principal principal) {
         // Validate request parameters
         validateLogbookRequest(logbook);
         if (!logbookName.equals(logbook.getName())) {
@@ -96,8 +95,6 @@ public class LogbooksResource {
         if (existingLogbook.isPresent()) {
             logbookAccessService.requireAdmin(logbookName, principal);
             logbook.setOwner(existingLogbook.get().getOwner());
-            // delete existing logbook
-            logbookRepository.deleteById(logbookName);
         } else {
             logbook.setOwner(principal.getName());
         }
@@ -112,7 +109,7 @@ public class LogbooksResource {
 
     @PutMapping
     public Iterable<Logbook> updateLogbooks(@RequestBody final List<Logbook> logbooks,
-                                            @AuthenticationPrincipal Principal principal) {
+                                            Principal principal) {
         // Validate request parameters
         validateLogbookRequest(logbooks);
 
@@ -123,8 +120,6 @@ public class LogbooksResource {
             if(existingLogbook.isPresent()) {
                 logbookAccessService.requireAdmin(logbook.getName(), principal);
                 logbook.setOwner(existingLogbook.get().getOwner());
-                // delete existing tag
-                logbookRepository.deleteById(logbook.getName());
             } else {
                 logbook.setOwner(principal.getName());
                 newLogbooks.add(logbook.getName());
@@ -143,13 +138,12 @@ public class LogbooksResource {
 
     @DeleteMapping("/{logbookName}")
     public void deleteLogbook (@PathVariable("logbookName") String logbookName,
-                               @AuthenticationPrincipal Principal principal) {
+                               Principal principal) {
 
         // check if present
         Optional<Logbook> existingLogbook = logbookRepository.findById(logbookName);
         if (existingLogbook.isPresent()) {
             logbookAccessService.requireAdmin(logbookName, principal);
-            // delete existing logbook
             logbookRepository.deleteById(logbookName);
             logbookAccessService.deleteMemberships(logbookName);
         } else {
@@ -188,6 +182,14 @@ public class LogbooksResource {
      * @param logbook the logbook to be validated
      */
     public void validateLogbookRequest(Logbook logbook) {
+        if (logbook.isOfficialExperiment()
+                && (logbook.getExperimentLdapPath() == null || logbook.getExperimentLdapPath().isBlank())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "experimentLdapPath is required for an official experiment logbook");
+        }
+        if (logbook.getExperimentLdapPath() != null) {
+            logbook.setExperimentLdapPath(logbook.getExperimentLdapPath().trim());
+        }
         if (logbook.getName() == null || logbook.getName().isEmpty()) {
             String message = MessageFormat.format(TextUtil.LOGBOOK_NAME_CANNOT_BE_NULL_OR_EMPTY, logbook.toString());
             log.log(Level.SEVERE, message, new ResponseStatusException(HttpStatus.BAD_REQUEST));

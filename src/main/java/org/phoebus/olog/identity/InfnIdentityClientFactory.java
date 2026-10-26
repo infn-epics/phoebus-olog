@@ -11,7 +11,7 @@ public class InfnIdentityClientFactory {
     private final String baseUrl;
 
     public InfnIdentityClientFactory(
-            @Value("${infn.identity.base-url:https://api.app.infn.it}") String baseUrl) {
+            @Value("${infn.identity.base-url:https://api.app.infn.it/identity}") String baseUrl) {
         this.baseUrl = baseUrl;
     }
 

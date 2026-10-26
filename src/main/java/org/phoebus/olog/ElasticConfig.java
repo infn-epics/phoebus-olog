@@ -183,6 +183,13 @@ public class ElasticConfig {
     @SuppressWarnings("unused")
     private String defaultLevelsURL;
 
+    public static String ES_STORAGE_QUOTA_INDEX;
+
+    @Value("${elasticsearch.storage.quota.index:olog_storage_quotas}")
+    public void setStorageQuotaIndex(String indexName) {
+        ES_STORAGE_QUOTA_INDEX = indexName;
+    }
+
     private ElasticsearchClient client;
     private static final AtomicBoolean esInitialized = new AtomicBoolean();
 
@@ -330,6 +337,19 @@ public class ElasticConfig {
         } catch (IOException e) {
             logger.log(Level.WARNING, MessageFormat.format(TextUtil.ELASTIC_FAILED_TO_CREATE_INDEX,
                     ES_LOGBOOK_MEMBER_INDEX), e);
+        }
+
+        // Olog per-logbook quotas and increase requests
+        try (InputStream is = ElasticConfig.class.getResourceAsStream("/storage_quota_mapping.json")) {
+            if (!client.indices().exists(e -> e.index(ES_STORAGE_QUOTA_INDEX)).value()) {
+                client.indices().create(c -> withTimeouts(c).index(ES_STORAGE_QUOTA_INDEX).withJson(is));
+            } else {
+                // Existing strict mappings need this field for the new per-logbook documents.
+                client.indices().putMapping(m -> m.index(ES_STORAGE_QUOTA_INDEX)
+                        .properties("logbook", p -> p.keyword(k -> k)));
+            }
+        } catch (IOException e) {
+            logger.log(Level.WARNING, "Unable to create storage quota index", e);
         }
 
         // Olog Tag Index

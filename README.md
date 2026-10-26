@@ -81,7 +81,7 @@ The INFN Identity Java client is generated at build time with OpenAPI Generator 
 and must not be edited or committed. Run `mvn generate-sources` to regenerate them.
 
 The generated `IdentityApi` can be created for a user bearer token through
-`InfnIdentityClientFactory`. The API base URL defaults to `https://api.app.infn.it` and can be overridden with
+`InfnIdentityClientFactory`. The API base URL defaults to `https://api.app.infn.it/identity` and can be overridden with
 the `INFN_IDENTITY_BASE_URL` environment variable.
 
 ### Logbook collaborators
@@ -252,3 +252,75 @@ What you should see is:
 
 If you would like to read up more on how passing environment variables between steps in a GitHub action works, 
 please see their docs on [Job Outputs](https://docs.github.com/en/actions/using-jobs/defining-outputs-for-jobs). 
+
+### Storage quotas
+
+`GET /Olog/storage/me` reports per-logbook Elasticsearch JSON data usage and the
+creator's total consumption, with an independent default quota of 1,000,000,000 bytes
+(1 GB) for each logbook. The creator's aggregate has no global limit. The
+measurement includes current and archived logs and collaborator metadata;
+MongoDB attachment binaries and the physical Lucene/index footprint are excluded.
+Inactive logbooks continue to count. Shared entries count once in the user's
+aggregate and in full in each associated logbook's breakdown.
+
+Writes that increase usage beyond a logbook's quota return HTTP 507 with
+`STORAGE_QUOTA_EXCEEDED`; read access and quota requests remain available.
+`POST /Olog/storage/requests` accepts `logbook`, `requestedQuotaBytes` (the new
+total quota for that logbook) and a reason. Only an administrator of that logbook
+can submit a request; approval changes that logbook alone. Global Olog administrators can list pending requests and approve
+or reject them in the Admin panel. Requests are stored in
+`olog_storage_quotas` (`elasticsearch.storage.quota.index`), provisioned from
+`storage_quota_mapping.json`. Global quota administration requires the exact
+INFN entitlement documented below, obtained from `/get/auth/{uuid}`.
+
+Admission checks and indexing are serialized inside one writer instance.
+A deployment with multiple writers must route writes through one instance;
+direct Elasticsearch writes bypass these application-level checks. Usage is
+calculated by paged scans of stored documents, so its cost grows with history.
+Review requests using `POST /Olog/storage/requests/{logbook}/{requestId}/review`.
+See the API documentation for the full request and review contract.
+
+Per-logbook quota records use document IDs prefixed with `logbook:`. Existing per-user
+quota records are retained but do not apply to logbooks; pending per-user requests must
+be resubmitted for the relevant logbook. Startup adds the `logbook` keyword field to an
+existing quota index. Deploy the backend and frontend together for this API change.
+
+### Olog administrator identity
+
+The Admin panel and quota review APIs require this exact INFN responsibility
+entitlement:
+
+```text
+i:infn:lnf:divisione_ricerca:servizio_infrastrutturale_calcolo_e_reti:reparto_sviluppo_applicazioni::n:resp
+```
+
+The backend queries INFN Identity's `/get/auth/{uuid}` with the authenticated
+user's UUID and Bearer token, then matches `payload.isMemberOf` or
+`payload.eduPersonEntitlement`. The authorization response is cached only for
+the current HTTP request and is shared with experiment membership checks.
+The entitlement must match exactly. Legacy `ROLE_ADMIN` authorities or
+logbook ADMIN grants do not substitute for this responsibility. If Identity
+is unavailable or returns an invalid response, administrator access is denied.
+The frontend uses the server's `administrator` result for its navigation and
+admin page; it does not infer this privilege from local token roles.
+
+### Logbook exports
+
+Logbook owners and delegated logbook administrators can download JSON or PDF via
+`GET /Olog/logbooks/{name}/export?format=json` (or `format=pdf`). Authentication
+is required (401); READ/WRITE membership or global Olog administrator status alone
+does not grant export access (403). JSON is the default format; other formats
+return 400. Responses are attachments with `Cache-Control: no-store`.
+
+Exports include all current entries associated with that exact logbook, including
+replies and inactive entries, ordered by creation time and id. JSON preserves
+stored fields in a versioned envelope (`formatVersion`, `exportedAt`, `logbook`,
+`logs`, `logCount`). PDF provides paginated text and metadata, with unsupported
+font glyphs represented as Unicode code points. Attachment metadata is included;
+binary attachment contents and historical archived versions are excluded.
+
+Elasticsearch results are scrolled beyond normal search page limits. The complete
+file is generated before download; generation failures return 503 and temporary
+files are removed. Ensure sufficient temporary disk space; optionally configure
+`olog.export.temp-directory` (default JVM temporary directory) for export files.
+PDFBox also uses the JVM temporary directory for its scratch storage.

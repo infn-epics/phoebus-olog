@@ -54,6 +54,9 @@ import static org.phoebus.olog.ElasticConfig.ES_LOG_ARCHIVE_INDEX;
 @Repository
 public class LogRepository implements CrudRepository<Log, String> {
 
+    @Autowired
+    private StorageQuotaGuard storageQuotaGuard;
+
     private static final Logger logger = Logger.getLogger(LogRepository.class.getName());
 
     @SuppressWarnings("unused")
@@ -88,7 +91,7 @@ public class LogRepository implements CrudRepository<Log, String> {
                                     .id(String.valueOf(id))
                                     .document(document)
                                     .refresh(Refresh.True));
-            IndexResponse response = client.index(indexRequest);
+            IndexResponse response = storageQuotaGuard.index(indexRequest);
 
             if (response.result().equals(Result.Created)) {
                 GetRequest getRequest =
@@ -98,6 +101,8 @@ public class LogRepository implements CrudRepository<Log, String> {
                         client.get(getRequest, Log.class);
                 return (S) resp.source();
             }
+        } catch (ResponseStatusException e) {
+            throw e;
         } catch (Exception e) {
             String message = MessageFormat.format(TextUtil.LOG_NOT_SAVED, log);
             logger.log(Level.SEVERE, message, e);
@@ -125,7 +130,7 @@ public class LogRepository implements CrudRepository<Log, String> {
                                     .refresh(Refresh.True)
                                     .document(document));
 
-            IndexResponse response = client.index(indexRequest);
+            IndexResponse response = storageQuotaGuard.index(indexRequest);
 
             if (response.result().equals(Result.Updated)) {
                 GetRequest getRequest =
@@ -135,6 +140,8 @@ public class LogRepository implements CrudRepository<Log, String> {
                         client.get(getRequest, Log.class);
                 return resp.source();
             }
+        } catch (ResponseStatusException e) {
+            throw e;
         } catch (Exception e) {
             String message = MessageFormat.format(TextUtil.LOG_NOT_UPDATED, log);
             logger.log(Level.SEVERE, message, e);
@@ -159,7 +166,7 @@ public class LogRepository implements CrudRepository<Log, String> {
                                         .id(updatedVersion)
                                         .document(originalDocument)
                                         .refresh(Refresh.True));
-                IndexResponse response = client.index(indexRequest);
+                IndexResponse response = storageQuotaGuard.index(indexRequest);
                 if (response.result().equals(Result.Created)) {
                     GetRequest getRequest =
                             GetRequest.of(g ->

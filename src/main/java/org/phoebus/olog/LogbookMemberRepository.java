@@ -25,12 +25,15 @@ import static org.phoebus.olog.ElasticConfig.ES_LOGBOOK_MEMBER_INDEX;
 public class LogbookMemberRepository {
 
     @Autowired
+    private StorageQuotaGuard storageQuotaGuard;
+
+    @Autowired
     @Qualifier("client")
     private ElasticsearchClient client;
 
     public LogbookMember save(LogbookMember member) {
         try {
-            client.index(IndexRequest.of(i -> i.index(ES_LOGBOOK_MEMBER_INDEX)
+            storageQuotaGuard.index(IndexRequest.of(i -> i.index(ES_LOGBOOK_MEMBER_INDEX)
                     .id(member.getId())
                     .document(member)
                     .refresh(Refresh.True)));

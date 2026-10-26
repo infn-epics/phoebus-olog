@@ -1,0 +1,22 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+
+        {
+            "type": "java",
+            "name": "DEV",
+            "request": "launch",
+            "mainClass": "org.phoebus.olog.Application",
+            "projectName": "service-olog",
+            "args": "--server.max-http-header-size=32KB",
+            "env": {
+                "OAUTH2_CLAIMS_NAME": "preferred_username",
+                "OAUTH2_ENABLED": "true",
+                "OAUTH2_ISSUE_URI": "https://idp-test.app.infn.it/auth/realms/aai",
+            }
+        }
+    ]
+}

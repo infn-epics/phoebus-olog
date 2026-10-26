@@ -59,7 +59,7 @@ import static org.springframework.data.mongodb.core.query.Criteria.where;
 @SpringBootTest(
         webEnvironment = SpringBootTest.WebEnvironment.MOCK,
         classes = AuthenticationResource.class)
-@ContextConfiguration(classes = ElasticConfig.class)
+@ContextConfiguration(classes = {ElasticConfig.class, StorageQuotaGuard.class, StorageUsageRepository.class, StorageQuotaRepository.class, ElasticsearchDocumentScanner.class})
 @TestPropertySource(locations = "classpath:test_application.properties")
 @SuppressWarnings("unused")
 class LogRepositoryIT {

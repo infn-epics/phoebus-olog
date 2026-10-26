@@ -32,7 +32,7 @@ class LogbookAccessServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new LogbookAccessService(logbookRepository, memberRepository);
+        service = new LogbookAccessService(logbookRepository, memberRepository, org.mockito.Mockito.mock(org.phoebus.olog.identity.ExperimentMembershipService.class));
     }
 
     @Test

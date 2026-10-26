@@ -22,7 +22,7 @@ class LogbookVisibilityTest {
     @BeforeEach void setup() {
         books = mock(LogbookRepository.class);
         members = mock(LogbookMemberRepository.class);
-        service = new LogbookAccessService(books, members);
+        service = new LogbookAccessService(books, members, org.mockito.Mockito.mock(org.phoebus.olog.identity.ExperimentMembershipService.class));
         when(books.findById("operations")).thenReturn(Optional.of(book));
         when(books.findAll()).thenReturn(List.of(book));
         member = new LogbookMember("operations", "reader", EnumSet.of(LogbookPermission.READ), "owner", "now", "now");

@@ -41,6 +41,14 @@ import static org.mockito.Mockito.when;
 @Profile("!ITtest")
 @SuppressWarnings("unused")
 public class ResourcesTestConfig {
+    @Bean
+    public LogbookExportService logbookExportService() {
+        return Mockito.mock(LogbookExportService.class);
+    }
+    @Bean
+    public StorageService storageService() {
+        return Mockito.mock(StorageService.class);
+    }
 
     @Bean
     public LogbookRepository logbookRepository() {

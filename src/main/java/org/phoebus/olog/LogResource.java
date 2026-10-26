@@ -28,7 +28,6 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -233,7 +232,7 @@ public class LogResource {
                          @RequestParam(value = "markup", required = false) String markup,
                          @RequestParam(value = "inReplyTo", required = false, defaultValue = "-1") String inReplyTo,
                          @RequestBody Log log,
-                         @AuthenticationPrincipal Principal principal) {
+                         Principal principal) {
         if (log.getLogbooks().isEmpty()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, TextUtil.LOG_MUST_HAVE_LOGBOOK);
         }
@@ -298,7 +297,7 @@ public class LogResource {
                          @RequestParam(value = "inReplyTo", required = false, defaultValue = "-1") String inReplyTo,
                          @RequestPart("logEntry") Log logEntry,
                          @RequestPart(value = "files", required = false) MultipartFile[] files,
-                         @AuthenticationPrincipal Principal principal) {
+                         Principal principal) {
 
         if (files != null && logEntry.getAttachments() != null && files.length != logEntry.getAttachments().size()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, TextUtil.ATTACHMENT_DATA_INVALID);
@@ -397,7 +396,7 @@ public class LogResource {
                          @RequestParam(value = "markup", required = false) String markup,
                          @RequestPart("logEntry") Log log,
                          @RequestPart(value = "files", required = false) MultipartFile[] files,
-                         @AuthenticationPrincipal Principal principal) {
+                         Principal principal) {
 
         // In case a client sends a log record where the id does not match the path variable, return HTTP 400 (bad request)
         if (!logId.equals(Long.toString(log.getId()))) {

@@ -82,8 +82,10 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
     protected void configure(HttpSecurity http) throws Exception {
         http.cors().and().csrf().disable();
         http.authorizeRequests()
+                .antMatchers("/Olog/storage/**").authenticated()
                 .antMatchers(HttpMethod.GET, "/Olog/logs/**", "/Olog/attachment/**").authenticated()
                 .antMatchers(HttpMethod.GET, "/Olog/logbooks/*/members").authenticated()
+                .antMatchers(HttpMethod.GET, "/Olog/logbooks/*/export").authenticated()
                 .antMatchers(HttpMethod.GET, "/Olog/logbooks/*/permissions/me").authenticated()
                 .antMatchers(HttpMethod.GET, "/Olog/logbooks/permissions/me").authenticated()
                 .antMatchers(HttpMethod.GET, "/**").permitAll()

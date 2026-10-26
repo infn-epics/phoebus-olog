@@ -16,6 +16,9 @@ import org.springframework.stereotype.Component;
 
 
 import java.util.Collections;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Locale;
 import java.util.List;
 
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -84,6 +87,18 @@ public class JwtAuthenticationProvider implements AuthenticationProvider {
             List<SimpleGrantedAuthority> authorities = Collections.singletonList(
                     new SimpleGrantedAuthority("ROLE_USER")
             );
+            authorities = new ArrayList<>(authorities);
+            Object realm = claims.get("realm_access");
+            if (realm instanceof Map<?, ?>) {
+                Object roles = ((Map<?, ?>) realm).get("roles");
+                if (roles instanceof Collection<?>) {
+                    for (Object role : (Collection<?>) roles) {
+                        if (role instanceof String && !((String) role).isBlank()) {
+                            authorities.add(new SimpleGrantedAuthority("ROLE_" + ((String) role).toUpperCase(Locale.ROOT)));
+                        }
+                    }
+                }
+            }
 
             return new UsernamePasswordAuthenticationToken(username, jwtToken, authorities);
 

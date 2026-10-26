@@ -25,6 +25,7 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.Set;
 import java.util.ArrayList;
+import org.phoebus.olog.identity.ExperimentMembershipService;
 
 @Service
 public class LogbookAccessService {
@@ -32,9 +33,13 @@ public class LogbookAccessService {
     private final LogbookRepository logbookRepository;
     private final LogbookMemberRepository memberRepository;
 
-    public LogbookAccessService(LogbookRepository logbookRepository, LogbookMemberRepository memberRepository) {
+    private final ExperimentMembershipService experimentMembershipService;
+
+    public LogbookAccessService(LogbookRepository logbookRepository, LogbookMemberRepository memberRepository,
+                                ExperimentMembershipService experimentMembershipService) {
         this.logbookRepository = logbookRepository;
         this.memberRepository = memberRepository;
+        this.experimentMembershipService = experimentMembershipService;
     }
 
     public LogbookMember createOwnerMembership(String logbook, Principal principal) {
@@ -110,9 +115,7 @@ public class LogbookAccessService {
         Logbook persistedLogbook = logbookRepository.findById(logbook)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
                         "The logbook does not exist"));
-        if (principal == null) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED);
-        }
+        requireAuthenticated(principal);
 
         boolean owner = principal.getName().equals(persistedLogbook.getOwner());
         boolean membershipAdmin = memberRepository.find(logbook, principal.getName())
@@ -141,6 +144,9 @@ public class LogbookAccessService {
                             ? EnumSet.noneOf(LogbookPermission.class)
                             : EnumSet.copyOf(value))
                     .orElseGet(() -> EnumSet.noneOf(LogbookPermission.class));
+        }
+        if (isExperimentMember(persistedLogbook, principal)) {
+            permissions.add(LogbookPermission.READ);
         }
         return new LogbookPermissions(logbook, principal.getName(), permissions,
                 permissions.contains(LogbookPermission.ADMIN));
@@ -189,9 +195,19 @@ public class LogbookAccessService {
     }
 
     private void requireAuthenticated(Principal principal) {
-        if (principal == null || principal instanceof AnonymousAuthenticationToken) {
+        if (principal == null || principal instanceof AnonymousAuthenticationToken
+                || (principal instanceof Authentication && !((Authentication) principal).isAuthenticated())) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED);
         }
+    }
+
+    private boolean isExperimentMember(Logbook logbook, Principal principal) {
+        return experimentMembershipService.isMember(logbook, principal);
+    }
+
+    private boolean hasExperimentRead(String logbook, Principal principal) {
+        return logbookRepository.findById(logbook)
+                .map(book -> isExperimentMember(book, principal)).orElse(false);
     }
 
     private void validatePeriod(String from, String to) {
@@ -224,6 +240,7 @@ public class LogbookAccessService {
         boolean readable = log.getLogbooks().stream().anyMatch(book -> {
             LogbookPermissions access = permissionsFor(book.getName(), principal);
             if (access.admin()) return true;
+            if (hasExperimentRead(book.getName(), principal)) return true;
             if (access.permissions().isEmpty()) return false;
             LogbookMember member = memberRepository.find(book.getName(), principal.getName()).orElse(null);
             if (member == null) return false;
@@ -249,8 +266,9 @@ public class LogbookAccessService {
         for (LogbookPermissions access : permissionsForCurrentUser(principal)) {
             Query book = Query.of(q -> q.nested(n -> n.path("logbooks")
                     .query(c -> c.term(t -> t.field("logbooks.name").value(access.logbook())))));
-            LogbookMember member = access.admin() ? null : memberRepository.find(access.logbook(), principal.getName()).orElse(null);
-            if (!access.admin() && member == null) continue;
+            boolean unrestricted = access.admin() || hasExperimentRead(access.logbook(), principal);
+            LogbookMember member = unrestricted ? null : memberRepository.find(access.logbook(), principal.getName()).orElse(null);
+            if (!unrestricted && member == null) continue;
             if (member == null || (member.getVisibleFrom() == null && member.getVisibleTo() == null)) {
                 grants.add(book);
             } else {

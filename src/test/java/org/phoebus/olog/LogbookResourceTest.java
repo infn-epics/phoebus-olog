@@ -67,6 +67,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @TestPropertySource(locations = "classpath:no_ldap_test_application.properties")
 @ActiveProfiles({"test"})
 public class LogbookResourceTest extends ResourcesTestBase {
+    @Test
+    void exportRequiresAuthentication() throws Exception {
+        for (String format : List.of("json", "pdf")) {
+            mockMvc.perform(get("/Olog/logbooks/ATLAS/export").param("format", format))
+                    .andExpect(status().isUnauthorized());
+        }
+    }
+
 
     @Autowired
     private LogbookRepository logbookRepository;
@@ -189,6 +197,29 @@ public class LogbookResourceTest extends ResourcesTestBase {
                 OlogResourceDescriptors.LOGBOOK_RESOURCE_URI +
                 "/name1");
         mockMvc.perform(request).andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void testDeleteExistingLogbookDeactivatesItAndRemovesMembers() throws Exception {
+        when(logbookRepository.findById("name1")).thenReturn(Optional.of(logbook1));
+        mockMvc.perform(delete("/" + OlogResourceDescriptors.LOGBOOK_RESOURCE_URI + "/name1")
+                .header(HttpHeaders.AUTHORIZATION, AUTHORIZATION)).andExpect(status().isOk());
+        verify(logbookRepository).deleteById("name1");
+        verify(logbookAccessService).deleteMemberships("name1");
+        reset(logbookRepository, logbookAccessService);
+    }
+
+    @Test
+    void testQuotaExceededRemainsHttp507WithActionableMessage() throws Exception {
+        when(logbookRepository.findById("quota-limited")).thenReturn(Optional.empty());
+        when(logbookRepository.save(any(Logbook.class))).thenThrow(new StorageQuotaGuard.QuotaExceeded("quota-limited"));
+        mockMvc.perform(put("/" + OlogResourceDescriptors.LOGBOOK_RESOURCE_URI + "/quota-limited")
+                .header(HttpHeaders.AUTHORIZATION, AUTHORIZATION).contentType(JSON)
+                .content("{\"name\":\"quota-limited\"}"))
+                .andExpect(status().is(507))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.code")
+                        .value("STORAGE_QUOTA_EXCEEDED"));
+        reset(logbookRepository);
     }
 
     @Test

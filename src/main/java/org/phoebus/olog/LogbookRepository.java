@@ -11,8 +11,6 @@ import co.elastic.clients.elasticsearch._types.FieldSort;
 import co.elastic.clients.elasticsearch._types.Refresh;
 import co.elastic.clients.elasticsearch._types.Result;
 import co.elastic.clients.elasticsearch._types.SortOptions;
-import co.elastic.clients.elasticsearch.core.BulkRequest;
-import co.elastic.clients.elasticsearch.core.BulkResponse;
 import co.elastic.clients.elasticsearch.core.ExistsRequest;
 import co.elastic.clients.elasticsearch.core.GetRequest;
 import co.elastic.clients.elasticsearch.core.GetResponse;
@@ -22,10 +20,6 @@ import co.elastic.clients.elasticsearch.core.MgetRequest;
 import co.elastic.clients.elasticsearch.core.MgetResponse;
 import co.elastic.clients.elasticsearch.core.SearchRequest;
 import co.elastic.clients.elasticsearch.core.SearchResponse;
-import co.elastic.clients.elasticsearch.core.UpdateRequest;
-import co.elastic.clients.elasticsearch.core.UpdateResponse;
-import co.elastic.clients.elasticsearch.core.bulk.BulkOperation;
-import co.elastic.clients.elasticsearch.core.bulk.IndexOperation;
 import co.elastic.clients.elasticsearch.core.mget.MultiGetResponseItem;
 import co.elastic.clients.elasticsearch.core.search.Hit;
 import org.phoebus.olog.entity.Logbook;
@@ -52,6 +46,9 @@ import static org.phoebus.olog.ElasticConfig.ES_LOGBOOK_INDEX;
 @Repository
 public class LogbookRepository implements CrudRepository<Logbook, String> {
 
+    @Autowired
+    private StorageQuotaGuard storageQuotaGuard;
+
     @SuppressWarnings("unused")
     @Value("${elasticsearch.result.size.logbooks:100}")
     private int logbooksResultSize;
@@ -72,7 +69,7 @@ public class LogbookRepository implements CrudRepository<Logbook, String> {
                                     .id(logbook.getName())
                                     .document(logbook)
                                     .refresh(Refresh.True));
-            IndexResponse response = client.index(indexRequest);
+            IndexResponse response = storageQuotaGuard.index(indexRequest);
 
             if (response.result().equals(Result.Created) ||
                     response.result().equals(Result.Updated)) {
@@ -84,6 +81,8 @@ public class LogbookRepository implements CrudRepository<Logbook, String> {
                 return (S) resp.source();
             }
             return null;
+        } catch (ResponseStatusException e) {
+            throw e;
         } catch (Exception e) {
             String message = MessageFormat.format(TextUtil.LOGBOOK_NOT_CREATED, logbook);
             logger.log(Level.SEVERE, message, e);
@@ -93,32 +92,9 @@ public class LogbookRepository implements CrudRepository<Logbook, String> {
 
     @Override
     public <S extends Logbook> Iterable<S> saveAll(Iterable<S> logbooks) {
-        List<BulkOperation> bulkOperations = new ArrayList<>();
-        logbooks.forEach(logbook -> bulkOperations.add(IndexOperation.of(i ->
-                i.index(ES_LOGBOOK_INDEX).document(logbook).id(logbook.getName()))._toBulkOperation()));
-        BulkRequest bulkRequest =
-                BulkRequest.of(r ->
-                        r.operations(bulkOperations).refresh(Refresh.True));
-        BulkResponse bulkResponse;
-        try {
-            bulkResponse = client.bulk(bulkRequest);
-            if (bulkResponse.errors()) {
-                // process failures by iterating through each bulk response item
-                bulkResponse.items().forEach(responseItem -> {
-                    if (responseItem.error() != null) {
-                        logger.log(Level.SEVERE, responseItem.error().reason());
-                    }
-                });
-                String message = MessageFormat.format(TextUtil.LOGBOOKS_NOT_CREATED, logbooks);
-                throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, message);
-            } else {
-                return logbooks;
-            }
-        } catch (IOException e) {
-            String message = MessageFormat.format(TextUtil.LOGBOOKS_NOT_CREATED, logbooks);
-            logger.log(Level.SEVERE, message, e);
-            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, message);
-        }
+        List<S> saved = new ArrayList<>();
+        logbooks.forEach(logbook -> saved.add(save(logbook)));
+        return saved;
     }
 
     @Override
@@ -222,17 +198,15 @@ public class LogbookRepository implements CrudRepository<Logbook, String> {
             if (resp.found()) {
                 Logbook logbook = resp.source();
                 logbook.setState(State.Inactive);
-                UpdateRequest<Logbook, Logbook> updateRequest =
-                        UpdateRequest.of(u ->
-                                u.index(ES_LOGBOOK_INDEX).id(logbookName)
-                                        .doc(logbook));
-                UpdateResponse<Logbook> updateResponse =
-                        client.update(updateRequest, Logbook.class);
+                IndexResponse updateResponse = storageQuotaGuard.index(IndexRequest.of(i ->
+                        i.index(ES_LOGBOOK_INDEX).id(logbookName).document(logbook).refresh(Refresh.True)));
                 if (updateResponse.result().equals(co.elastic.clients.elasticsearch._types.Result.Updated)) {
                     String message = MessageFormat.format(TextUtil.LOGBOOK_DELETE, logbookName);
                     logger.log(Level.INFO, () -> message);
                 }
             }
+        } catch (ResponseStatusException e) {
+            throw e;
         } catch (Exception e) {
             String message = MessageFormat.format(TextUtil.LOGBOOK_NOT_DELETED, logbookName);
             logger.log(Level.SEVERE, message, e);

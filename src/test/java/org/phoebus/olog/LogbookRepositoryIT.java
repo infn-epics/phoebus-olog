@@ -33,7 +33,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 @SpringBootTest(
         webEnvironment = SpringBootTest.WebEnvironment.MOCK,
         classes = AuthenticationResource.class)
-@ContextConfiguration(classes = {LogbookRepository.class, ElasticConfig.class})
+@ContextConfiguration(classes = {LogbookRepository.class, ElasticConfig.class, StorageQuotaGuard.class, StorageUsageRepository.class, StorageQuotaRepository.class, ElasticsearchDocumentScanner.class})
 @TestPropertySource(locations = "classpath:test_application.properties")
 class LogbookRepositoryIT {
 
