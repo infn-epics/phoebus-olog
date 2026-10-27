@@ -147,4 +147,21 @@ class LogbookAccessServiceTest {
 
         assertTrue(service.permissionsFor("operations", () -> "epics").permissions().isEmpty());
     }
+
+    @Test
+    void authenticatedPermissionsOpenEveryLogbookWithoutAdmin() {
+        service.setAuthenticatedPermissions("read, write, admin");
+        Principal anyone = () -> "someone-uuid";
+        when(logbookRepository.findById("operations"))
+                .thenReturn(Optional.of(new Logbook("operations", owner.getName())));
+        when(memberRepository.find("operations", "someone-uuid")).thenReturn(Optional.empty());
+
+        assertEquals(EnumSet.of(LogbookPermission.READ, LogbookPermission.WRITE),
+                service.permissionsFor("operations", anyone).permissions());
+        service.requirePermission(java.util.List.of("operations"), LogbookPermission.WRITE, anyone);
+        assertTrue(service.readFilter(anyone).isMatchAll());
+        ResponseStatusException exception = assertThrows(ResponseStatusException.class,
+                () -> service.requireAdmin("operations", anyone));
+        assertEquals(HttpStatus.FORBIDDEN, exception.getStatusCode());
+    }
 }

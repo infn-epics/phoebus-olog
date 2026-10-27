@@ -55,6 +55,29 @@ public class LogbookAccessService {
                 .collect(Collectors.toUnmodifiableSet());
     }
 
+    /**
+     * Permissions every authenticated user has on every logbook, on top of their memberships,
+     * e.g. READ,WRITE for an open facility logbook. ADMIN is never granted this way.
+     * Comma separated (property logbook.authenticated-permissions, env LOGBOOK_AUTHENTICATED_PERMISSIONS); empty by default.
+     */
+    private Set<LogbookPermission> authenticatedPermissions = EnumSet.noneOf(LogbookPermission.class);
+
+    @Value("${logbook.authenticated-permissions:}")
+    void setAuthenticatedPermissions(String authenticatedPermissions) {
+        EnumSet<LogbookPermission> permissions = EnumSet.noneOf(LogbookPermission.class);
+        Arrays.stream(authenticatedPermissions.split(","))
+                .map(String::trim)
+                .filter(name -> !name.isEmpty())
+                .map(name -> LogbookPermission.valueOf(name.toUpperCase()))
+                .forEach(permissions::add);
+        permissions.remove(LogbookPermission.ADMIN);
+        this.authenticatedPermissions = permissions;
+    }
+
+    private boolean everyoneReads() {
+        return authenticatedPermissions.contains(LogbookPermission.READ);
+    }
+
     private boolean isServiceReader(Principal principal) {
         return principal != null && serviceReaders.contains(principal.getName());
     }
@@ -163,6 +186,7 @@ public class LogbookAccessService {
                             ? EnumSet.noneOf(LogbookPermission.class)
                             : EnumSet.copyOf(value))
                     .orElseGet(() -> EnumSet.noneOf(LogbookPermission.class));
+            permissions.addAll(authenticatedPermissions);
             if (permissions.isEmpty() && isServiceReader(principal)) {
                 permissions = EnumSet.of(LogbookPermission.READ);
             }
@@ -246,7 +270,7 @@ public class LogbookAccessService {
 
     public void requireReadable(Log log, Principal principal) {
         requireAuthenticated(principal);
-        if (isServiceReader(principal)) {
+        if (isServiceReader(principal) || everyoneReads()) {
             return;
         }
         boolean readable = log.getLogbooks().stream().anyMatch(book -> {
@@ -273,7 +297,7 @@ public class LogbookAccessService {
     /** OR of per-logbook grants, applied before pagination and counting. */
     public Query readFilter(Principal principal) {
         requireAuthenticated(principal);
-        if (isServiceReader(principal)) {
+        if (isServiceReader(principal) || everyoneReads()) {
             return Query.of(q -> q.matchAll(m -> m));
         }
         List<Query> grants = new ArrayList<>();
