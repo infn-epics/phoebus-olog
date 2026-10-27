@@ -13,6 +13,7 @@ import org.phoebus.olog.entity.LogbookMember;
 import org.phoebus.olog.entity.LogbookPermission;
 import org.phoebus.olog.entity.LogbookPermissions;
 import org.springframework.http.HttpStatus;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -26,6 +27,8 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.Set;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.stream.Collectors;
 
 @Service
 public class LogbookAccessService {
@@ -33,9 +36,27 @@ public class LogbookAccessService {
     private final LogbookRepository logbookRepository;
     private final LogbookMemberRepository memberRepository;
 
+    /**
+     * Accounts that may read every logbook without a membership, e.g. the backup and export jobs.
+     * Comma separated (property logbook.service-readers, env LOGBOOK_SERVICE_READERS); empty by default.
+     */
+    private Set<String> serviceReaders = Set.of();
+
     public LogbookAccessService(LogbookRepository logbookRepository, LogbookMemberRepository memberRepository) {
         this.logbookRepository = logbookRepository;
         this.memberRepository = memberRepository;
+    }
+
+    @Value("${logbook.service-readers:}")
+    void setServiceReaders(String serviceReaders) {
+        this.serviceReaders = Arrays.stream(serviceReaders.split(","))
+                .map(String::trim)
+                .filter(name -> !name.isEmpty())
+                .collect(Collectors.toUnmodifiableSet());
+    }
+
+    private boolean isServiceReader(Principal principal) {
+        return principal != null && serviceReaders.contains(principal.getName());
     }
 
     public LogbookMember createOwnerMembership(String logbook, Principal principal) {
@@ -142,6 +163,9 @@ public class LogbookAccessService {
                             ? EnumSet.noneOf(LogbookPermission.class)
                             : EnumSet.copyOf(value))
                     .orElseGet(() -> EnumSet.noneOf(LogbookPermission.class));
+            if (permissions.isEmpty() && isServiceReader(principal)) {
+                permissions = EnumSet.of(LogbookPermission.READ);
+            }
         }
         return new LogbookPermissions(logbook, principal.getName(), permissions,
                 permissions.contains(LogbookPermission.ADMIN));
@@ -222,6 +246,9 @@ public class LogbookAccessService {
 
     public void requireReadable(Log log, Principal principal) {
         requireAuthenticated(principal);
+        if (isServiceReader(principal)) {
+            return;
+        }
         boolean readable = log.getLogbooks().stream().anyMatch(book -> {
             LogbookPermissions access = permissionsFor(book.getName(), principal);
             if (access.admin()) return true;
@@ -246,6 +273,9 @@ public class LogbookAccessService {
     /** OR of per-logbook grants, applied before pagination and counting. */
     public Query readFilter(Principal principal) {
         requireAuthenticated(principal);
+        if (isServiceReader(principal)) {
+            return Query.of(q -> q.matchAll(m -> m));
+        }
         List<Query> grants = new ArrayList<>();
         for (LogbookPermissions access : permissionsForCurrentUser(principal)) {
             Query book = Query.of(q -> q.nested(n -> n.path("logbooks")

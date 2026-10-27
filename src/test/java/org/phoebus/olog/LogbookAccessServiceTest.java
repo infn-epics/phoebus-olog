@@ -17,6 +17,7 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -120,5 +121,30 @@ class LogbookAccessServiceTest {
                         () -> "reader-uuid"));
 
         assertEquals(HttpStatus.FORBIDDEN, exception.getStatusCode());
+    }
+
+    @Test
+    void serviceReaderReadsEveryLogbookButCannotWrite() {
+        service.setServiceReaders(" backup , epics ");
+        Principal backup = () -> "epics";
+        when(logbookRepository.findById("operations"))
+                .thenReturn(Optional.of(new Logbook("operations", owner.getName())));
+        when(memberRepository.find("operations", "epics")).thenReturn(Optional.empty());
+
+        assertEquals(EnumSet.of(LogbookPermission.READ), service.permissionsFor("operations", backup).permissions());
+        assertTrue(service.readFilter(backup).isMatchAll());
+        ResponseStatusException exception = assertThrows(ResponseStatusException.class,
+                () -> service.requirePermission(java.util.List.of("operations"), LogbookPermission.WRITE, backup));
+        assertEquals(HttpStatus.FORBIDDEN, exception.getStatusCode());
+    }
+
+    @Test
+    void noServiceReadersByDefault() {
+        service.setServiceReaders("");
+        when(logbookRepository.findById("operations"))
+                .thenReturn(Optional.of(new Logbook("operations", owner.getName())));
+        when(memberRepository.find("operations", "epics")).thenReturn(Optional.empty());
+
+        assertTrue(service.permissionsFor("operations", () -> "epics").permissions().isEmpty());
     }
 }
