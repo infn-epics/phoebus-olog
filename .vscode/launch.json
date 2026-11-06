@@ -11,11 +11,11 @@
             "request": "launch",
             "mainClass": "org.phoebus.olog.Application",
             "projectName": "service-olog",
-            "args": "--server.max-http-header-size=32KB",
+            "args": "--server.max-http-header-size=32KB --spring.main.allow-circular-references=true",
             "env": {
                 "OAUTH2_CLAIMS_NAME": "preferred_username",
                 "OAUTH2_ENABLED": "true",
-                "OAUTH2_ISSUE_URI": "https://idp-test.app.infn.it/auth/realms/aai",
+                "OAUTH2_ISSUE_URI": "https://idp-test.app.infn.it/auth/realms/aai"
             }
         }
     ]
