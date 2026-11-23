@@ -6,6 +6,7 @@
  */
 package org.phoebus.olog;
 
+import org.phoebus.olog.security.OwnerName;
 import jakarta.servlet.http.HttpServletRequest;
 import org.apache.commons.collections4.CollectionUtils;
 import org.phoebus.olog.entity.Attachment;
@@ -344,7 +345,7 @@ public class LogResource {
         if (!inReplyTo.equals("-1")) {
             handleReply(inReplyTo, log);
         }
-        log.setOwner(principal.getName());
+        log.setOwner(OwnerName.of(principal));
         Set<String> logbookNames = log.getLogbooks().stream().map(Logbook::getName).collect(Collectors.toSet());
         Set<String> persistedLogbookNames = new HashSet<>();
         logbookRepository.findAll().forEach(l -> persistedLogbookNames.add(l.getName()));
@@ -564,7 +565,7 @@ public class LogResource {
                 log.getProperties().add(logEntryGroupProperty);
             }
 
-            persistedLog.setOwner(principal.getName());
+            persistedLog.setOwner(OwnerName.of(principal));
             persistedLog.setLevel(log.getLevel());
             persistedLog.setProperties(log.getProperties());
             persistedLog.setModifyDate(Instant.now());
@@ -630,7 +631,7 @@ public class LogResource {
                 log.getProperties().add(logEntryGroupProperty);
             }
 
-            persistedLog.setOwner(principal.getName());
+            persistedLog.setOwner(OwnerName.of(principal));
             persistedLog.setLevel(log.getLevel());
             persistedLog.setProperties(log.getProperties());
             persistedLog.setModifyDate(Instant.now());

@@ -3,6 +3,7 @@ package org.phoebus.olog.security.provider;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
+import org.phoebus.olog.security.OwnerName;
 import org.phoebus.olog.security.WebSecurityConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,6 +39,10 @@ public class JwtAuthenticationProvider implements AuthenticationProvider {
 
     @Value("${oauth2.claimsName}")
     String claimsName;
+
+    /** Claim with the human readable name used as owner of log entries and templates. */
+    @Value("${oauth2.displayNameClaim:name}")
+    String displayNameClaim;
     private final RestTemplate restTemplate = new RestTemplate();
 
 
@@ -86,7 +91,10 @@ public class JwtAuthenticationProvider implements AuthenticationProvider {
                     new SimpleGrantedAuthority("ROLE_USER")
             );
 
-            return new UsernamePasswordAuthenticationToken(username, jwtToken, authorities);
+            UsernamePasswordAuthenticationToken result =
+                    new UsernamePasswordAuthenticationToken(username, jwtToken, authorities);
+            result.setDetails(new OwnerName.DisplayName(claims.get(displayNameClaim, String.class)));
+            return result;
 
         } catch (AuthenticationException e) {
             throw e;

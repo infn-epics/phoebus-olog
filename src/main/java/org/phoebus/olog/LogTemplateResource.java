@@ -3,6 +3,7 @@
  */
 package org.phoebus.olog;
 
+import org.phoebus.olog.security.OwnerName;
 import org.apache.commons.collections4.CollectionUtils;
 import org.phoebus.olog.entity.LogTemplate;
 import org.phoebus.olog.entity.Logbook;
@@ -82,7 +83,7 @@ public class LogTemplateResource {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Template with name \"" + logTemplate.getName() + "\" already exists");
             }
         }
-        logTemplate.setOwner(principal.getName());
+        logTemplate.setOwner(OwnerName.of(principal));
 
         // If template specifies logbooks, check that they actually exist
         Set<Logbook> logbooks = logTemplate.getLogbooks();
@@ -168,7 +169,7 @@ public class LogTemplateResource {
 
         LogTemplate persistedLogTemplate = foundLogTemplate.get();
         persistedLogTemplate.setName(logTemplate.getName());
-        persistedLogTemplate.setOwner(principal.getName());
+        persistedLogTemplate.setOwner(OwnerName.of(principal));
         persistedLogTemplate.setLevel(logTemplate.getLevel());
         persistedLogTemplate.setProperties(logTemplate.getProperties());
         persistedLogTemplate.setModifyDate(Instant.now());
