@@ -106,9 +106,9 @@ public class LogTemplateResource {
             }
         }
 
-        // Check that template references only existing properties and attribute names.
-        // Note: we compare only names, not attribute values, because templates may
-        // carry pre-filled attribute values that differ from the property definitions.
+        // Check that template properties exist and list exactly the persisted attribute names
+        // (as Property#equals() did before). Only names are compared, not attribute values,
+        // because templates may carry pre-filled attribute values.
         Set<Property> properties = logTemplate.getProperties();
         if (properties != null && !properties.isEmpty()) {
             Map<String, Set<String>> persistedPropAttrs = new HashMap<>();
@@ -126,12 +126,13 @@ public class LogTemplateResource {
                     throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                             TextUtil.LOG_INVALID_PROPERTIES);
                 }
-                if (prop.getAttributes() != null) {
-                    for (var attr : prop.getAttributes()) {
-                        if (!knownAttrs.contains(attr.getName())) {
-                            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                                    TextUtil.LOG_INVALID_PROPERTIES);
-                        }
+                if (prop.getAttributes() != null && !prop.getAttributes().isEmpty()) {
+                    Set<String> attrNames = prop.getAttributes().stream()
+                            .map(a -> a.getName())
+                            .collect(Collectors.toSet());
+                    if (!attrNames.equals(knownAttrs)) {
+                        throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                                TextUtil.LOG_INVALID_PROPERTIES);
                     }
                 }
             }

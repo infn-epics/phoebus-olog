@@ -37,6 +37,7 @@ import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.WebSecurityCustomizer;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.web.SecurityFilterChain;
@@ -107,7 +108,13 @@ public class WebSecurityConfig {
                     AuthenticationProvider authenticationProvider = context.getBean(providerName, AuthenticationProvider.class);
                     logger.log(Level.INFO, "Authenticating user '" + authentication.getPrincipal() + "' with provider '" + providerName + "'");
                     try {
-                        return authenticationProvider.authenticate(authentication);
+                        Authentication result = authenticationProvider.authenticate(authentication);
+                        // null means the provider does not handle these credentials (e.g. the JWT
+                        // provider given a password): try the next one instead of returning null,
+                        // which made a failed password login a 500 instead of a 401.
+                        if (result != null) {
+                            return result;
+                        }
                     } catch (AuthenticationException e) {
                         logger.log(Level.WARNING, "Authentication failed using provider '" + providerName + "'", e);
                     }
